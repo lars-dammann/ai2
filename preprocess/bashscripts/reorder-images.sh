@@ -21,7 +21,7 @@ copy_file () {
     if [[ "$src" =~ "profilometer" ]]; then
         type="profilometer"
     elif [[ "$src" =~ "raw" ]]; then
-        type="depth"
+        type="height"
     elif [[ "$src" =~ "heatmap" ]]; then
         type="heatmap"
     elif [[ "$src" =~ "scanner" ]]; then
