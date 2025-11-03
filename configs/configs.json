@@ -49,5 +49,10 @@
                 }
             }
         }
+    },
+    "unet": {
+        "udepth": 5,
+        "startfeature": 32,
+        "lr": 1e-3
     }
 }

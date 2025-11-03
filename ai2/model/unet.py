@@ -18,8 +18,11 @@ class DoubleConv(nn.Module):
         return self.net(x)
 
 class UNet(nn.Module):
-    def __init__(self, in_channels=4, out_channels=1, features=[64, 128, 256, 512, 1024]):
+    def __init__(self, config, in_channels=4, out_channels=1, features=[64, 128, 256, 512, 1024]):
         super().__init__()
+
+        features = [config["startfeature"]*2**i for i in range(config["udepth"])]
+
         self.downconv = nn.ModuleList()
         self.upconv = nn.ModuleList()
         self.upsampling = nn.ModuleList()

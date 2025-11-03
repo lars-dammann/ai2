@@ -20,7 +20,7 @@ class CorrosionDataset(Dataset):
         self.transform = transform
         self.config = config
 
-        normalization_dict = self.config["datamodule"]["normalization"]
+        normalization_dict = self.config["normalization"]
         self.data_mean = np.concatenate((normalization_dict["before"]["image"]["mean"], normalization_dict["before"]["height"]["mean"], normalization_dict["after"]["height"]["mean"]), axis=0).astype(np.float32)
         self.data_std = np.concatenate((normalization_dict["before"]["image"]["std"], normalization_dict["before"]["height"]["std"], normalization_dict["after"]["height"]["std"]), axis=0).astype(np.float32)
 
@@ -86,9 +86,9 @@ class CorrosionDataModule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.data_dir = Path(config["datamodule"]["datadir"])
-        self.data_size = config["datamodule"]["datasize"]
-        self.batch_size = config["datamodule"]["batchsize"]
+        self.data_dir = Path(config["datadir"])
+        self.data_size = config["datasize"]
+        self.batch_size = config["batchsize"]
         self.train_transform = v2.Compose([v2.RandomCrop(self.data_size, pad_if_needed=True), v2.RandomHorizontalFlip(), v2.RandomVerticalFlip()])
         self.val_transform = v2.Compose([v2.RandomCrop(self.data_size, pad_if_needed=True)])
 
