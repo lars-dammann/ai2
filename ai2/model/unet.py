@@ -23,6 +23,8 @@ class UNet(nn.Module):
 
         features = [config["startfeature"]*2**i for i in range(config["udepth"])]
 
+        torch.set_float32_matmul_precision('medium')
+
         self.downconv = nn.ModuleList()
         self.upconv = nn.ModuleList()
         self.upsampling = nn.ModuleList()
