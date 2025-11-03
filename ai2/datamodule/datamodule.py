@@ -100,13 +100,13 @@ class CorrosionDataModule(pl.LightningDataModule):
             self.test_data = CorrosionDataset(self.data_dir / "test", self.config, transform=self.val_transform)
 
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.batch_size)
+        return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=int(os.environ['SLURM_CPUS_PER_TASK']))
 
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.batch_size)
+        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=int(os.environ['SLURM_CPUS_PER_TASK']))
 
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.batch_size)
+        return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=int(os.environ['SLURM_CPUS_PER_TASK']))
 
 # if __name__=="__main__":
 #     # Example usage
