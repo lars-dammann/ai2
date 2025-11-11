@@ -11,6 +11,7 @@ class CorrosionUNet(pl.LightningModule):
         self.model = UNet(config, in_channels=4, out_channels=1)
         self.loss_fn = nn.functional.mse_loss
         self.learning_rate = config["lr"]
+        self.weight_decay = config["weight_decay"]
 
     def forward(self, x):
         return self.model(x)
@@ -22,7 +23,7 @@ class CorrosionUNet(pl.LightningModule):
         loss = self.loss_fn(y_pred, y_target)
         self.log('train_loss', loss)
         r2score = R2Score()
-        self.log('train_r2_loss', r2score(y_pred, y_target))
+        self.log('train_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -31,7 +32,7 @@ class CorrosionUNet(pl.LightningModule):
         loss = self.loss_fn(y_pred, y_target)
         self.log('val_loss', loss)
         r2score = R2Score()
-        self.log('val_r2_loss', r2score(y_pred, y_target))
+        self.log('val_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -40,7 +41,7 @@ class CorrosionUNet(pl.LightningModule):
         loss = self.loss_fn(y_pred, y_target)
         self.log('test_loss', loss)
         r2score = R2Score()
-        self.log('test_r2_loss', r2score(y_pred, y_target))
+        self.log('test_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def configure_optimizers(self):

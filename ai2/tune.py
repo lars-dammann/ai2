@@ -36,6 +36,7 @@ def objective(trial):
     trial.suggest_int("batchsize", 2, 4)
     trial.suggest_int("datasize", 256, 256)
     trial.suggest_float('lr', 1e-4, 1e-2, log=True)
+    trial.suggest_float('weight_decay', 1e-5, 1e-1, log=True)
 
     # Load and unite configs
     config = get_config(trial.params)
@@ -71,7 +72,7 @@ def objective(trial):
         accelerator="auto",
         logger=wandb_logger,
         callbacks=[early_stop_callback, pruning_callback],
-        max_epochs=2,
+        max_epochs=100,
         num_nodes=nnodes,
         log_every_n_steps=20,
         )

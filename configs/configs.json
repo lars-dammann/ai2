@@ -1,8 +1,8 @@
 {
     "datamodule": {
         "datadir": "/home/hgf_desy/hgf_yqq0513/repos/ai2/data",
-        "batchsize": 1,
-        "datasize": 256,
+        "batchsize": 16,
+        "datasize": 512,
         "normalization": {
             "before": {
                 "image": {
@@ -52,7 +52,8 @@
     },
     "unet": {
         "udepth": 5,
-        "startfeature": 32,
-        "lr": 1e-3
+        "startfeature": 64,
+        "lr": 1e-4,
+        "weight_decay": 1e-4
     }
 }

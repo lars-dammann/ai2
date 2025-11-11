@@ -3,9 +3,12 @@ from model.lit_model import CorrosionUNet
 from utils.get_config import get_config
 
 from pathlib import Path
+import os
 
 import torch.nn as nn
-import lightning as pl
+from lightning.pytorch import Trainer
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
 
@@ -18,13 +21,47 @@ def weights_init(model):
         nn.init.constant_(model.weight, 1)
         nn.init.constant_(model.bias, 0)
 
-wandb_logger = WandbLogger(project="ai2")
-trainer = pl.Trainer(limit_train_batches=100, max_epochs=1, logger=wandb_logger)
-
+# Load and unite configs
 config = get_config()
+
+try:
+    config["n_workers"] = int(os.getenv('SLURM_CPUS_PER_TASK'))
+except TypeError:
+    pass
 
 model = CorrosionUNet(config=config["unet"])
 model.apply(weights_init)
+
 datamodule = CorrosionDataModule(config=config["datamodule"])
+
+# initialise the wandb logger and name your wandb project
+wandb_logger = WandbLogger(project="ai2", name=f"Default", log_model=True)
+wandb_logger.experiment.config.update(config)
+
+# Checkpoint callback
+checkpoint_dir = Path(os.path.dirname(__file__)).parent
+checkpoint_dir = checkpoint_dir / "checkpoints"
+checkpoint_callback = ModelCheckpoint(monitor="val_loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val_loss:.2f}')
+
+# Early stopping callback
+early_stop_callback = EarlyStopping(
+    monitor='val_loss',
+    patience=20,
+    verbose=False,
+    mode='min'
+)
+
+nnodes = int(os.getenv("SLURM_NNODES"))
+trainer = Trainer(
+    devices="auto",
+    accelerator="auto",
+    gradient_clip_val=1.0,
+    logger=wandb_logger,
+    callbacks=[early_stop_callback, checkpoint_callback],
+    max_epochs=200,
+    num_nodes=nnodes,
+    log_every_n_steps=20,
+    precision='bf16-mixed'
+    )
 
 trainer.fit(model, datamodule=datamodule)
