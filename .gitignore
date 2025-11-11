@@ -199,3 +199,6 @@ slurm/output
 
 # Lighnting logs
 lightning_logs/
+
+# Model Checkpoints
+checkpoints/
