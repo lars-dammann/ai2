@@ -182,6 +182,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         self.save_hyperparameters()
         self.config = datamodule_config
         self.data_dir = Path(datamodule_config["datadir"])
+        self.predict_data = datamodule_config["predictdata"]
         self.data_size = datamodule_config["datasize"]
         self.batch_size = datamodule_config["batchsize"]
         self.train_transform = v2.Compose(
@@ -212,7 +213,7 @@ class CorrosionDataModule(pl.LightningDataModule):
                 self.data_dir / "test", self.config, transform=self.val_transform)
         if stage == "predict":
             self.predict_data = PredictCorrosionDataset(
-                self.data_dir / "test", self.config, self.data_size)
+                self.data_dir / self.predict_data, self.config, self.data_size)
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True,

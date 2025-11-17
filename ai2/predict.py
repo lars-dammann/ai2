@@ -22,20 +22,24 @@ class SaveHeightPrediction(Callback):
 
     def on_predict_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         profiles, sample_ids = outputs
+        self.save_path.mkdir(parents=True, exist_ok=True)
         for index, id in enumerate(sample_ids):
             np.save(self.save_path / f"{id}.npy", torch.squeeze(profiles[index]))
 
+config = get_config({"batchsize": 2})
 
-save_path = Path(__file__).parent.parent / "results/predictions"
 # Load model from checkpoint
-checkpoint_reference = "lars-dammann-phd/ai2/model-5tg5u9kj:best"
+model = "model-5tg5u9kj"
+version = "best"
+checkpoint_reference = f"lars-dammann-phd/ai2/{model}:{version}"
+
+# Determine where to save the prediciton results to
+save_path = Path(__file__).parent.parent / f"results/predictions/{model}-{version}/{config["datamodule"]["predictdata"]}"
 
 run = wandb.init(project="ai2", group="predict")
 
 artifact = run.use_artifact(checkpoint_reference, type="model")
 artifact_dir = artifact.download()
-
-config = get_config({"batchsize": 2})
 
 model = CorrosionUNet.load_from_checkpoint(
     Path(artifact_dir) / "model.ckpt", model_config=config["unet"])

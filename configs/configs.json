@@ -3,6 +3,7 @@
         "datadir": "/home/hgf_desy/hgf_yqq0513/repos/ai2/data",
         "batchsize": 16,
         "datasize": 512,
+        "predictdata": "test",
         "normalization": {
             "before": {
                 "image": {
