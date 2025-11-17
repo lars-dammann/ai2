@@ -7,13 +7,15 @@ import torch
 from torchvision.io import read_image
 from torchvision.transforms import v2
 
-def load_config():
-    with open(Path(__file__).parent.parent.parent / "configs/configs.json", "r") as f:
+def load_config(file):
+    if file is None:
+        file = "configs.json"
+    with open(Path(__file__).parent.parent.parent / "configs" / file, "r") as f:
         return json.load(f)
 
 
-def get_config(new_config=None):
-    config = load_config()
+def get_config(new_config=None, file=None):
+    config = load_config(file)
 
     if new_config is None:
         return config
