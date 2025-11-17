@@ -13,6 +13,7 @@ class Normalizer:
 
     def normalize_masked(self, data, mask):
         cdata = torch.clone(data)
+        mask = mask.to(bool)
         inv_mask = self._prepare_mask(mask)
         cdata[inv_mask] = self.normalize(data[inv_mask])
         return cdata
