@@ -23,27 +23,27 @@ class CorrosionUNet(pl.LightningModule):
         x, y_target = batch
         y_pred = self(x)
         loss = self.loss_fn(y_pred, y_target)
-        self.log('train_loss', loss)
+        self.log('train-mse-loss', loss)
         r2score = R2Score()
-        self.log('train_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
+        self.log('train-r2score', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y_target = batch
         y_pred = self(x)
         loss = self.loss_fn(y_pred, y_target)
-        self.log('val_loss', loss)
+        self.log('val-mse-loss', loss)
         r2score = R2Score()
-        self.log('val_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
+        self.log('val-r2score', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def test_step(self, batch, batch_idx):
         x, y_target = batch
         y_pred = self(x)
         loss = self.loss_fn(y_pred, y_target)
-        self.log('test_loss', loss)
+        self.log('test-mse-loss', loss)
         r2score = R2Score()
-        self.log('test_r2_loss', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
+        self.log('test-r2score', r2score(torch.flatten(y_pred), torch.flatten(y_target)))
         return loss
 
     def predict_step(self, batch, batch_idx):
