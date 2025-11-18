@@ -1,7 +1,7 @@
 from model.unet import UNet
 
 import lightning as pl
-from torchmetrics.regression import R2Score, PearsonCorrCoef
+from torchmetrics.regression import R2Score
 import torch
 import torch.nn as nn
 
@@ -50,8 +50,16 @@ class CorrosionUNet(pl.LightningModule):
         return torch.mean(r2score(y_pred.view(y_pred.shape[0], -1).t(), y_target.view(y_target.shape[0], -1).t()))
 
     def _batch_pearson_corr(self, y_pred, y_target):
-        pearson = PearsonCorrCoef(num_outputs=y_pred.shape[0])
-        return torch.mean(pearson(y_pred.view(y_pred.shape[0], -1).t(), y_target.view(y_target.shape[0], -1).t()))
+        reshaped_y_pred = y_pred.view(y_pred.shape[0], -1)
+        reshaped_y_target = y_target.view(y_target.shape[0], -1)
+        norm = 1/(torch.std(reshaped_y_pred, dim=1)
+                  * torch.std(reshaped_y_target, dim=1) * (reshaped_y_pred.shape[1] - 1))
+        y_pred_mean = torch.mean(reshaped_y_pred, dim=1, keepdim=True)
+        y_target_mean = torch.mean(reshaped_y_pred, dim=1, keepdim=True)
+        return torch.mean(norm * torch.sum(
+            (reshaped_y_pred - y_pred_mean) *
+            (reshaped_y_target - y_target_mean),
+            dim=1))
 
     def predict_step(self, batch, batch_idx):
         """
