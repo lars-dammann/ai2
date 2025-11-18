@@ -5,11 +5,12 @@ from utils.get_data import get_config
 from pathlib import Path
 
 import torch
-from lightning.pytorch import Trainer
+from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback
 import wandb
 import numpy as np
 
+seed_everything(0, workers=True)
 
 class SaveHeightPrediction(Callback):
     """

@@ -6,11 +6,12 @@ from pathlib import Path
 import os
 
 import torch.nn as nn
-from lightning.pytorch import Trainer
+from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
+seed_everything(0, workers=True)
 
 def weights_init(model):
     if isinstance(model, nn.Conv2d):
@@ -23,11 +24,6 @@ def weights_init(model):
 
 # Load and unite configs
 config = get_config({"batchsize": 2}, file="debug-configs.json")
-
-try:
-    config["n_workers"] = int(os.getenv('SLURM_CPUS_PER_TASK'))
-except TypeError:
-    pass
 
 model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)

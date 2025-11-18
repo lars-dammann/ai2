@@ -1,24 +1,20 @@
-import random
 import os
+from pathlib import Path
 
-import numpy as np
 import optuna
 from optuna.integration import PyTorchLightningPruningCallback
 # from optuna.integration.wandb import WeightsAndBiasesCallback
-import torch
 import torch.nn as nn
-from lightning.pytorch import Trainer, Callback, seed_everything
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
-# from lightning.pytorch.callbacks import ModelCheckpoint
-# from lightning.pytorch.strategies import DDPStrategy
 import wandb
 
 from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
-from utils.get_config import get_config
+from utils.get_data import get_config
 
-
+seed_everything(0, workers=True)
 
 def weights_init(model):
     if isinstance(model, nn.Conv2d):
@@ -31,11 +27,11 @@ def weights_init(model):
 
 def objective(trial):
     wandb.finish()
-    trial.suggest_int("udepth", 3, 3)
-    trial.suggest_int("startfeature", 8, 8)
-    trial.suggest_int("batchsize", 2, 4)
-    trial.suggest_int("datasize", 256, 256)
-    trial.suggest_float('lr', 1e-4, 1e-2, log=True)
+    trial.suggest_int("udepth", 3, 6)
+    trial.suggest_categorial("startfeature", [8, 16, 32, 64, 128])
+    trial.suggest_categorial("batchsize", [8, 16, 32])
+    trial.suggest_categorial("datasize", [256, 512, 1024])
+    trial.suggest_float('lr', 1e-5, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-5, 1e-1, log=True)
 
     # Load and unite configs
@@ -46,42 +42,42 @@ def objective(trial):
     except TypeError:
         pass
 
-    model = CorrosionUNet(config=config["unet"])
+    model = CorrosionUNet(model_config=config["unet"])
     model.apply(weights_init)
 
-    datamodule = CorrosionDataModule(config=config["datamodule"])
+    datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
     # initialise the wandb logger and name your wandb project
-    wandb_logger = WandbLogger(project="ai2", name=f"Trial {trial.number}")
+    wandb_logger = WandbLogger(project="ai2", group="", name=f"Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
-    # Early stopping callback
-    early_stop_callback = EarlyStopping(
-        monitor='val_loss',
-        patience=5,
-        verbose=False,
-        mode='min'
-    )
+    # Checkpoint callback
+    checkpoint_dir = Path(os.path.dirname(__file__)).parent
+    checkpoint_dir = checkpoint_dir / "checkpoints"
+    checkpoint_callback = ModelCheckpoint(monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val_loss:.2f}')
+
 
     # Optuna pruning callback
-    pruning_callback = PyTorchLightningPruningCallback(trial, monitor='val_loss')
+    pruning_callback = PyTorchLightningPruningCallback(trial, monitor='val-mse-loss')
 
     nnodes = int(os.getenv("SLURM_NNODES"))
     trainer = Trainer(
         devices="auto",
         accelerator="auto",
         logger=wandb_logger,
-        callbacks=[early_stop_callback, pruning_callback],
-        max_epochs=100,
+        callbacks=[pruning_callback, checkpoint_callback],
+        max_epochs=200,
         num_nodes=nnodes,
         log_every_n_steps=20,
+        precision='bf16-mixed',
+        gradient_clip_val=1.0,
         )
 
     trainer.fit(model, datamodule=datamodule)
-    return trainer.callback_metrics["val_loss"].item()
+    return trainer.callback_metrics["val-mse-loss"].item()
 
 def run_optimization(n_trials=5):
-    pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=10)
+    pruner = optuna.pruners.HyperbandPruner(n_startup_trials=5, n_warmup_steps=10)
     study = optuna.create_study(direction='minimize', pruner=pruner)
     study.optimize(objective, n_trials=n_trials)
 
@@ -93,25 +89,5 @@ def run_optimization(n_trials=5):
         print(f"    {key}: {value}")
 
     return study
-
-# def test_best_model(study):
-#     # Getting the best hyperparameters
-#     best_params = study.best_trial.params
-
-#     # Creating the model with the best hyperparameters
-#     # Load and unite configs
-#     config = get_config(best_params)
-
-#     # Creating trainer instance
-#     trainer = Trainer(max_epochs=10)
-
-#     datamodule = CorrosionDataModule(config=config["datamodule"])
-
-#     # Training the model with the best hyperparameters
-#     trainer.fit(model, datamodule=datamodule)
-
-#     # Testing the model with the test data
-#     results = trainer.test(model, test_loader)
-#     return results
 
 study = run_optimization(n_trials=5)

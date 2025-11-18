@@ -1,16 +1,17 @@
 from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
-from utils.get_config import get_config
+from utils.get_data import get_config
 
 from pathlib import Path
 import os
 
 import torch.nn as nn
-from lightning.pytorch import Trainer
+from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
+seed_everything(0, workers=True)
 
 def weights_init(model):
     if isinstance(model, nn.Conv2d):
