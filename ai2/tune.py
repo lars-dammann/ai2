@@ -54,7 +54,7 @@ def objective(trial):
     # Checkpoint callback
     checkpoint_dir = Path(os.path.dirname(__file__)).parent
     checkpoint_dir = checkpoint_dir / "checkpoints"
-    checkpoint_callback = ModelCheckpoint(monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val_loss:.2f}')
+    checkpoint_callback = ModelCheckpoint(monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val-mse-loss:.2f}')
 
 
     # Optuna pruning callback
