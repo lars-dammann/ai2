@@ -7,6 +7,7 @@ import os
 
 import torch.nn as nn
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.tuner import Tuner
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
@@ -59,5 +60,8 @@ trainer = Trainer(
     log_every_n_steps=20,
     precision='bf16-mixed'
     )
+
+tuner = Tuner(trainer)
+tuner.scale_batch_size(model, datamodule=datamodule)
 
 trainer.fit(model, datamodule=datamodule)

@@ -6,6 +6,7 @@ from optuna.integration import PyTorchLightningPruningCallback
 # from optuna.integration.wandb import WeightsAndBiasesCallback
 import torch.nn as nn
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.tuner import Tuner
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 import wandb
@@ -29,7 +30,7 @@ def objective(trial):
     wandb.finish()
     trial.suggest_int("udepth", 3, 6)
     trial.suggest_categorial("startfeature", [8, 16, 32, 64, 128])
-    trial.suggest_categorial("batchsize", [8, 16, 32])
+    # trial.suggest_categorial("batchsize", [8, 16, 32])
     trial.suggest_categorial("datasize", [256, 512, 1024])
     trial.suggest_float('lr', 1e-5, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-5, 1e-1, log=True)
@@ -48,7 +49,7 @@ def objective(trial):
     datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
     # initialise the wandb logger and name your wandb project
-    wandb_logger = WandbLogger(project="ai2", group="", name=f"Trial {trial.number}", log_model=True)
+    wandb_logger = WandbLogger(project="ai2", group="HyperOpt", name=f"Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
@@ -72,6 +73,9 @@ def objective(trial):
         precision='bf16-mixed',
         gradient_clip_val=1.0,
         )
+
+    tuner = Tuner(trainer)
+    tuner.scale_batch_size(model, datamodule=datamodule)
 
     trainer.fit(model, datamodule=datamodule)
     return trainer.callback_metrics["val-mse-loss"].item()
