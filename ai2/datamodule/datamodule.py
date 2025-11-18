@@ -177,14 +177,14 @@ class CorrosionDataModule(pl.LightningDataModule):
     Lightning data module that provides the data for the train, val, test and predict steps.
     """
 
-    def __init__(self, datamodule_config):
+    def __init__(self, datamodule_config, batch_size=16):
         super().__init__()
         self.save_hyperparameters()
         self.config = datamodule_config
         self.data_dir = Path(datamodule_config["datadir"])
         self.predict_data = datamodule_config["predictdata"]
         self.data_size = datamodule_config["datasize"]
-        self.batch_size = datamodule_config["batchsize"]
+        self.batch_size = batch_size
         self.train_transform = v2.Compose(
             [v2.RandomCrop(self.data_size, pad_if_needed=True),
              v2.RandomHorizontalFlip(),
@@ -195,7 +195,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         try:
             self.num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
         except KeyError:
-            self.num_workers = 1
+            self.num_workers = 2
 
     @staticmethod
     def predict_coallate_function(batch):
