@@ -25,15 +25,10 @@ def weights_init(model):
 # Load and unite configs
 config = get_config()
 
-try:
-    config["n_workers"] = int(os.getenv('SLURM_CPUS_PER_TASK'))
-except TypeError:
-    pass
-
-model = CorrosionUNet(config=config["unet"])
+model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)
 
-datamodule = CorrosionDataModule(config=config["datamodule"])
+datamodule = CorrosionDataModule(datamodule_config=config["datamodule"], batch_size=16)
 
 # initialise the wandb logger and name your wandb project
 wandb_logger = WandbLogger(project="ai2", name=f"Default", log_model=True)
