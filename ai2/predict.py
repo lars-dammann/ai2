@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.tuner import Tuner
 from lightning.pytorch.callbacks import Callback
 import wandb
 import numpy as np
@@ -27,7 +28,7 @@ class SaveHeightPrediction(Callback):
         for index, id in enumerate(sample_ids):
             np.save(self.save_path / f"{id}.npy", torch.squeeze(profiles[index]))
 
-config = get_config({"batchsize": 2})
+config = get_config()
 
 # Load model from checkpoint
 model = "model-5tg5u9kj"
@@ -44,9 +45,12 @@ artifact_dir = artifact.download()
 
 model = CorrosionUNet.load_from_checkpoint(
     Path(artifact_dir) / "model.ckpt", model_config=config["unet"])
-datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
+datamodule = CorrosionDataModule(datamodule_config=config["datamodule"], batch_size=2)
 
 save_height_prectiions = SaveHeightPrediction(save_path=save_path)
 trainer = Trainer(callbacks=[save_height_prectiions])
+
+tuner = Tuner(trainer)
+tuner.scale_batch_size(model, datamodule=datamodule, method='predict')
 
 trainer.predict(model, datamodule=datamodule)
