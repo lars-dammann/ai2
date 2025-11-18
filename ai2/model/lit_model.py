@@ -33,7 +33,7 @@ class CorrosionUNet(pl.LightningModule):
         loss = nn.functional.mse_loss(y_pred, y_target)
         self.log('val-mse-loss', loss)
         self.log('val-r2score', self._batch_r2score(y_pred, y_target))
-        self.log('train-corr', self._batch_pearson_corr(y_pred, y_target))
+        self.log('val-corr', self._batch_pearson_corr(y_pred, y_target))
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -42,7 +42,7 @@ class CorrosionUNet(pl.LightningModule):
         loss = nn.functional.mse_loss(y_pred, y_target)
         self.log('test-mse-loss', loss)
         self.log('test-r2score', self._batch_r2score(y_pred, y_target))
-        self.log('train-corr', self._batch_pearson_corr(y_pred, y_target))
+        self.log('test-corr', self._batch_pearson_corr(y_pred, y_target))
         return loss
 
     def _batch_r2score(self, y_pred, y_target):
