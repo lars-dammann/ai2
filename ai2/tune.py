@@ -30,7 +30,7 @@ def weights_init(model):
 def objective(trial):
     wandb.finish()
     trial.suggest_int("udepth", 3, 6)
-    trial.suggest_categorical("startfeature", [16, 32, 64, 128])
+    trial.suggest_categorical("startfeature", [64])
     trial.suggest_categorical("datasize", [512])
     trial.suggest_float('lr', 1e-6, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
@@ -49,8 +49,9 @@ def objective(trial):
 
     datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
+    group = "HyperOptSize1024"
     # initialise the wandb logger and name your wandb project
-    wandb_logger = WandbLogger(project="ai2", group="HyperOpt",
+    wandb_logger = WandbLogger(project="ai2", group=group,
                                name=f"Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
@@ -59,7 +60,7 @@ def objective(trial):
     checkpoint_dir = checkpoint_dir / "checkpoints"
     checkpoint_callback = ModelCheckpoint(
         monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
-        every_n_epochs=1, filename='{epoch}-{val-mse-loss:.2f}')
+        every_n_epochs=1, filename='{group}-{trial.number}-{epoch}-{val-mse-loss:.2f}')
 
     # Optuna pruning callback prunes on number of epochs
     pruning_callback = PyTorchLightningPruningCallback(trial, monitor='val-mse-loss')
@@ -99,7 +100,7 @@ def objective(trial):
 def run_optimization(n_trials=5):
     pruner = optuna.pruners.SuccessiveHalvingPruner(min_resource=3, reduction_factor=5)
     sampler = optuna.samplers.TPESampler(multivariate=True, n_startup_trials=20)
-    study_name = "asha-tpe"
+    study_name = "asha-tpe-size1024"
     study = optuna.create_study(
         storage=f"sqlite:///optuna/{study_name}.db", study_name=study_name, direction='minimize',
         pruner=pruner, sampler=sampler)
