@@ -7,12 +7,13 @@ import torch.nn as nn
 
 
 class CorrosionUNet(pl.LightningModule):
-    def __init__(self, model_config):
+    def __init__(self, model_config, reconstruction_overlap=0):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["reconstruction_overlap"])
         self.model = UNet(model_config, in_channels=4, out_channels=1)
         self.learning_rate = model_config["lr"]
         self.weight_decay = model_config["weight_decay"]
+        self.reconstruction_overlap = reconstruction_overlap
 
     def forward(self, x):
         return self.model(x)
@@ -93,20 +94,48 @@ class CorrosionUNet(pl.LightningModule):
     def _reconstruct_single_height_profile(self, data, patch_positions, imageshape):
         reconstructed_profile = torch.full((1, *imageshape), torch.nan)
         patchshape = data.shape[-2:]
-        # Loop over every patch and the correspondin position in the full image
+
+        # Determine if patch is on the first or last position
+        flattened_pos = [i for ii in patch_positions for i in ii]
+        max_pos = max(flattened_pos)
+        min_pos = min(flattened_pos)
+
+        # Loop over every patch and the corresponding position in the full image
         for index, pos in enumerate(patch_positions):
+            # Determine how much the borders of the patches have to be cropped
+            x_start_crop, x_end_crop = self._determine_crop(
+                pos=pos[0],
+                min_pos=min_pos, max_pos=max_pos)
+            y_start_crop, y_end_crop = self._determine_crop(
+                pos=pos[1],
+                min_pos=min_pos, max_pos=max_pos)
+
             # Get patch in reconstructed image
             reconstructed_patch = reconstructed_profile[:,
-                                                        pos[0]:pos[0]+patchshape[0],
-                                                        pos[1]:pos[1]+patchshape[1]]
+                                                        pos[0] + x_start_crop:pos[0] + patchshape[0] - x_end_crop,
+                                                        pos[1] + y_start_crop:pos[1] + patchshape[1] - y_end_crop]
+            cropped_data = data[index, :, x_start_crop: patchshape[0] - x_end_crop,
+                                y_start_crop: patchshape[1] - y_end_crop]
             # Determine NaN values
             mask = torch.isnan(reconstructed_patch)
             # If NaN value, overwrite with patch
-            reconstructed_patch[mask] = data[index][mask]
+            reconstructed_patch[mask] = cropped_data[mask]
             # If not NaN value overwrite with mean
             reconstructed_patch[~mask] = torch.mean(torch.stack(
-                (reconstructed_patch[~mask], data[index][~mask])), dim=0)
+                (reconstructed_patch[~mask], cropped_data[~mask])), dim=0)
         return reconstructed_profile
+
+    def _determine_crop(self, pos, min_pos, max_pos):
+        """Determine if the patch has to be cropped at the borders"""
+        start_crop = self.reconstruction_overlap
+        end_crop = self.reconstruction_overlap
+
+        if pos == min_pos:
+            start_crop = 0
+        if pos == max_pos:
+            end_crop = 0
+
+        return start_crop, end_crop
 
     def configure_optimizers(self):
         return torch.optim.AdamW(

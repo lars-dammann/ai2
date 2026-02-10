@@ -1,8 +1,8 @@
 {
     "datamodule": {
-        "datadir": "/home/hgf_desy/hgf_yqq0513/repos/ai2/data",
+        "datadir": "/home/cld9301/sonne_home/repos/ai2/data",
+        "batch_size": 10,
         "datasize": 512,
-        "predictdata": "test",
         "normalization": {
             "before": {
                 "image": {
@@ -51,9 +51,9 @@
         }
     },
     "unet": {
-        "udepth": 5,
-        "startfeature": 64,
-        "lr": 1e-4,
-        "weight_decay": 1e-4
+        "udepth": 6,
+        "startfeature": 128,
+        "lr": 1e-1,
+        "weight_decay": 1e-1
     }
 }

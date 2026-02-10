@@ -95,9 +95,10 @@ class PredictCorrosionDataset(CorrosionDataset):
     for predicting the height profiles from the test data
     """
 
-    def __init__(self, data_dir, config, datasize):
+    def __init__(self, data_dir, config, datasize, reconstruction_overlap=0):
         super().__init__(data_dir, config, transform=None)
         self.datasize = datasize
+        self.reconstruction_overlap = reconstruction_overlap
 
     def __getitem__(self, idx):
         # Get the sample id
@@ -112,9 +113,12 @@ class PredictCorrosionDataset(CorrosionDataset):
         mask = get_mask(self.mask_dir, sample_id)
         data = self.normalizer.normalize_masked(data, mask)
 
+        # Determine the sliding lenght of each patch
+        slide_length = (self.datasize - 2 * self.reconstruction_overlap)
+
         # Create tensor to store the results of the sliding window
         patch_positions = []
-        n_height, n_width = data.shape[-2]//self.datasize, data.shape[-1]//self.datasize
+        n_height, n_width = data.shape[-2]//slide_length, data.shape[-1]//slide_length
         patch_tensor = torch.full(
             ((n_height + 1),
              (n_width + 1),
@@ -125,7 +129,7 @@ class PredictCorrosionDataset(CorrosionDataset):
 
         # Sliding window to extract patches
         for n_h in range(n_height):
-            height_position = n_h * self.datasize
+            height_position = n_h * (self.datasize - 2 * self.reconstruction_overlap)
             self._slide_width(data, n_width, n_h, height_position, patch_positions, patch_tensor)
         height_position = data.shape[-2] - self.datasize
         self._slide_width(data, n_width, n_height, height_position, patch_positions, patch_tensor)
@@ -143,7 +147,7 @@ class PredictCorrosionDataset(CorrosionDataset):
         # Crop the data at multiple positions along the image width
         top = height_position
         for n_w in range(n_width):
-            left = n_w * self.datasize
+            left = n_w * (self.datasize - 2 * self.reconstruction_overlap)
             patch_positions.append((top, left))
             patch_tensor[n_h, n_w, :, :, :] = v2.functional.crop(
                 data, top=top, left=left, height=self.datasize, width=self.datasize)
@@ -177,14 +181,15 @@ class CorrosionDataModule(pl.LightningDataModule):
     Lightning data module that provides the data for the train, val, test and predict steps.
     """
 
-    def __init__(self, datamodule_config, batch_size=16):
+    def __init__(self, datamodule_config, reconstruction_overlap=0, predict_dataset="test"):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["reconstruction_overlap", "predict_dataset"])
         self.config = datamodule_config
         self.data_dir = Path(datamodule_config["datadir"])
-        self.predict_data = datamodule_config["predictdata"]
+        self.predict_dataset = predict_dataset
         self.data_size = datamodule_config["datasize"]
-        self.batch_size = batch_size
+        self.reconstruction_overlap = reconstruction_overlap
+        self.batch_size = datamodule_config["batch_size"]
         self.train_transform = v2.Compose(
             [v2.RandomCrop(self.data_size, pad_if_needed=True),
              v2.RandomHorizontalFlip(),
@@ -199,6 +204,9 @@ class CorrosionDataModule(pl.LightningDataModule):
 
     @staticmethod
     def predict_coallate_function(batch):
+        """
+        Transform the different patches from the same image as subsequent images in the batch
+        """
         data, position_dicts = zip(*batch)
         return torch.cat(data, 0), dict(pair for d in position_dicts for pair in d.items())
 
@@ -213,7 +221,8 @@ class CorrosionDataModule(pl.LightningDataModule):
                 self.data_dir / "test", self.config, transform=self.val_transform)
         if stage == "predict":
             self.predict_data = PredictCorrosionDataset(
-                self.data_dir / self.predict_data, self.config, self.data_size)
+                self.data_dir / self.predict_dataset, self.config, self.data_size,
+                reconstruction_overlap=self.reconstruction_overlap)
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True,
