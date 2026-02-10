@@ -1,3 +1,4 @@
+from utils.nomalizer import Normalizer
 from model.unet import UNet
 
 import lightning as pl
@@ -72,6 +73,9 @@ class CorrosionUNet(pl.LightningModule):
         return self._reconstruct_height_profiles(y_pred, sample_info)
 
     def _reconstruct_height_profiles(self, y_pred, sample_info):
+        # Get the normalization values to denormalize after reconstruction
+        normalization = sample_info.pop("normalization")
+        normalizer = Normalizer(torch.tensor(normalization["mean"]), torch.tensor(normalization["std"]))
 
         # Get list of sample ids
         sample_ids = list(sample_info.keys())
@@ -81,12 +85,14 @@ class CorrosionUNet(pl.LightningModule):
         current_patch_number = 0
         for id in sample_ids:
             total_number_patches = sample_info[id]["total_number_patches"]
-            predicted_height_profiles.append(
-                self._reconstruct_single_height_profile(
+
+            reconstructed_height_profile = self._reconstruct_single_height_profile(
                     data=y_pred
                     [current_patch_number: current_patch_number + total_number_patches],
                     patch_positions=sample_info[id]["positions"],
-                    imageshape=sample_info[id]["imageshape"]))
+                    imageshape=sample_info[id]["imageshape"])
+
+            predicted_height_profiles.append(normalizer.denormalize(reconstructed_height_profile))
             current_patch_number += total_number_patches
 
         return predicted_height_profiles, sample_ids

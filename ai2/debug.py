@@ -8,10 +8,19 @@ import os
 import torch.nn as nn
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.utilities import grad_norm
 
 seed_everything(0, workers=True)
+
+class LogGradNormCallback(Callback):
+    def on_before_optimizer_step(self, trainer, pl_module, optimizer):
+        norm_order = 2.0
+        norms = grad_norm(pl_module, norm_type=norm_order)
+        pl_module.log(
+            'grad_norm', norms[f'grad_{norm_order}_norm_total'],
+            on_step=True, on_epoch=False)
 
 def weights_init(model):
     if isinstance(model, nn.Conv2d):
@@ -23,7 +32,7 @@ def weights_init(model):
         nn.init.constant_(model.bias, 0)
 
 # Load and unite configs
-config = get_config({"batchsize": 2}, file="debug-configs.json")
+config = get_config(file="debug-configs.json")
 
 model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)
@@ -53,11 +62,14 @@ trainer = Trainer(
     accelerator="auto",
     gradient_clip_val=1.0,
     logger=wandb_logger,
-    callbacks=[early_stop_callback, checkpoint_callback],
-    max_epochs=1,
+    callbacks=[checkpoint_callback, LogGradNormCallback()],
+    max_epochs=10,
     num_nodes=1,
     log_every_n_steps=1,
-    precision='bf16-mixed'
+    precision='bf16-mixed',
+    # max_steps=2
+    # limit_train_batches=1,
+    # limit_val_batches=1,
     )
 
 trainer.fit(model, datamodule=datamodule)

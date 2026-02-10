@@ -139,6 +139,7 @@ class PredictCorrosionDataset(CorrosionDataset):
         sample_info[sample_id]["positions"] = patch_positions
         sample_info[sample_id]["total_number_patches"] = ((n_height+1) * (n_width+1))
         sample_info[sample_id]["imageshape"] = imageshape
+        sample_info["normalization"] = self.config["normalization"]["after"]["height"]
 
         # Split the data back to before and after and return
         return torch.flatten(patch_tensor, start_dim=0, end_dim=1), sample_info
