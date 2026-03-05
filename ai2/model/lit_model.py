@@ -102,19 +102,19 @@ class CorrosionUNet(pl.LightningModule):
         patchshape = data.shape[-2:]
 
         # Determine if patch is on the first or last position
-        flattened_pos = [i for ii in patch_positions for i in ii]
-        max_pos = max(flattened_pos)
-        min_pos = min(flattened_pos)
+        max_pos = torch.tensor(patch_positions).max(dim=0).values
+        min_pos = torch.tensor(patch_positions).min(dim=0).values
+
 
         # Loop over every patch and the corresponding position in the full image
         for index, pos in enumerate(patch_positions):
             # Determine how much the borders of the patches have to be cropped
             x_start_crop, x_end_crop = self._determine_crop(
                 pos=pos[0],
-                min_pos=min_pos, max_pos=max_pos)
+                min_pos=min_pos[0], max_pos=max_pos[0])
             y_start_crop, y_end_crop = self._determine_crop(
                 pos=pos[1],
-                min_pos=min_pos, max_pos=max_pos)
+                min_pos=min_pos[1], max_pos=max_pos[1])
 
             # Get patch in reconstructed image
             reconstructed_patch = reconstructed_profile[:,
