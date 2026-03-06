@@ -75,7 +75,9 @@ class CorrosionUNet(pl.LightningModule):
     def _reconstruct_height_profiles(self, y_pred, sample_info):
         # Get the normalization values to denormalize after reconstruction
         normalization = sample_info.pop("normalization")
-        normalizer = Normalizer(torch.tensor(normalization["mean"]), torch.tensor(normalization["std"]))
+        normalizer = Normalizer(
+            torch.tensor(normalization["mean"]),
+            torch.tensor(normalization["std"]))
 
         # Get list of sample ids
         sample_ids = list(sample_info.keys())
@@ -87,10 +89,10 @@ class CorrosionUNet(pl.LightningModule):
             total_number_patches = sample_info[id]["total_number_patches"]
 
             reconstructed_height_profile = self._reconstruct_single_height_profile(
-                    data=y_pred
-                    [current_patch_number: current_patch_number + total_number_patches],
-                    patch_positions=sample_info[id]["positions"],
-                    imageshape=sample_info[id]["imageshape"])
+                data=y_pred
+                [current_patch_number: current_patch_number + total_number_patches],
+                patch_positions=sample_info[id]["positions"],
+                imageshape=sample_info[id]["imageshape"])
 
             predicted_height_profiles.append(normalizer.denormalize(reconstructed_height_profile))
             current_patch_number += total_number_patches
@@ -104,7 +106,6 @@ class CorrosionUNet(pl.LightningModule):
         # Determine if patch is on the first or last position
         max_pos = torch.tensor(patch_positions).max(dim=0).values
         min_pos = torch.tensor(patch_positions).min(dim=0).values
-
 
         # Loop over every patch and the corresponding position in the full image
         for index, pos in enumerate(patch_positions):
