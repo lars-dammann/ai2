@@ -29,37 +29,38 @@ class SaveHeightPrediction(Callback):
         for index, id in enumerate(sample_ids):
             np.save(self.save_path / f"{id}.npy", torch.squeeze(profiles[index]))
 
-
 # Load model from checkpoint
-run_id = "d2rltbw6"
-model = f"model-{run_id}"
+run_id = "dh1xlxcl"
+predict_datasets = ["test", "val", "train"]
 version = "best"
-checkpoint_reference = f"lars-dammann-phd/ai2/{model}:{version}"
 
-# Determine where to save the prediciton results to
-predict_dataset = "test"
-save_path = Path(
-    __file__).parent.parent / f"results/predictions/{model}-{version}/{predict_dataset}/numpy"
+model_name = f"model-{run_id}"
+model_dir = model_name + f"-{version}"
 
-run = wandb.init(project="ai2", id=run_id)
+# Get the config of the producing run to be able to load the model and datamodule with the same config
+api = wandb.Api()
+config = api.run(f"lars-dammann-phd/ai2/{run_id}").config
 
-artifact = run.use_artifact(checkpoint_reference, type="model")
+# Get model artifact and download it to a local directory
+artifact = api.artifact(f"lars-dammann-phd/ai2/model-{run_id}:{version}")
 artifact_dir = artifact.download()
-
-producing_run = artifact.logged_by()
-config = producing_run.config
 
 model = CorrosionUNet.load_from_checkpoint(
     Path(artifact_dir) / "model.ckpt", model_config=config["unet"], reconstruction_overlap=100)
 
-datamodule = CorrosionDataModule(
-    datamodule_config=config["datamodule"],
-    reconstruction_overlap=100, predict_dataset=predict_dataset)
+for predict_dataset in predict_datasets:
+    datamodule = CorrosionDataModule(
+        datamodule_config=config["datamodule"],
+        reconstruction_overlap=100, predict_dataset=predict_dataset)
 
-save_height_predictions = SaveHeightPrediction(save_path=save_path)
-trainer = Trainer(callbacks=[save_height_predictions])
+    # Determine where to save the prediciton results to
+    save_path = Path(
+        __file__).parent.parent / f"results/predictions/{model_dir}/{predict_dataset}/numpy"
 
-# tuner = Tuner(trainer)
-# tuner.scale_batch_size(model, datamodule=datamodule, method='predict')
+    save_height_predictions = SaveHeightPrediction(save_path=save_path)
+    trainer = Trainer(callbacks=[save_height_predictions])
 
-trainer.predict(model, datamodule=datamodule)
+    # tuner = Tuner(trainer)
+    # tuner.scale_batch_size(model, datamodule=datamodule, method='predict')
+
+    trainer.predict(model, datamodule=datamodule)
