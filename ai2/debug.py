@@ -14,6 +14,7 @@ from lightning.pytorch.utilities import grad_norm
 
 seed_everything(0, workers=True)
 
+
 class LogGradNormCallback(Callback):
     def on_before_optimizer_step(self, trainer, pl_module, optimizer):
         norm_order = 2.0
@@ -21,6 +22,7 @@ class LogGradNormCallback(Callback):
         pl_module.log(
             'grad_norm', norms[f'grad_{norm_order}_norm_total'],
             on_step=True, on_epoch=False)
+
 
 def weights_init(model):
     if isinstance(model, nn.Conv2d):
@@ -30,6 +32,7 @@ def weights_init(model):
     elif isinstance(model, nn.BatchNorm2d):
         nn.init.constant_(model.weight, 1)
         nn.init.constant_(model.bias, 0)
+
 
 # Load and unite configs
 config = get_config(file="debug-configs.json")
@@ -44,13 +47,14 @@ wandb_logger = WandbLogger(project="ai2", group="Debug", log_model=True)
 wandb_logger.experiment.config.update(config)
 
 # Checkpoint callback
-checkpoint_dir = Path(os.path.dirname(__file__)).parent
-checkpoint_dir = checkpoint_dir / "checkpoints"
-checkpoint_callback = ModelCheckpoint(monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val-mse-loss:.2f}')
+checkpoint_dir = Path(os.path.dirname(__file__)).parent / "checkpoints" / wandb_logger.experiment.id
+checkpoint_callback = ModelCheckpoint(
+    monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1,
+    filename='{epoch}-{val-loss:.2f}')
 
 # Early stopping callback
 early_stop_callback = EarlyStopping(
-    monitor='val-mse-loss',
+    monitor='val-loss',
     patience=20,
     verbose=False,
     mode='min'
@@ -70,6 +74,6 @@ trainer = Trainer(
     # max_steps=2
     # limit_train_batches=1,
     # limit_val_batches=1,
-    )
+)
 
 trainer.fit(model, datamodule=datamodule)

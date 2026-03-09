@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
+import logging
+import traceback
 
 import optuna
 from optuna.integration import PyTorchLightningPruningCallback
+import torch
 import torch.nn as nn
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.tuner import Tuner
@@ -15,6 +18,9 @@ from model.lit_model import CorrosionUNet
 from utils.get_data import get_config
 
 seed_everything(0, workers=True)
+
+group = "MAELoss"
+# group = "Test"
 
 
 def weights_init(model):
@@ -30,14 +36,14 @@ def weights_init(model):
 def objective(trial):
     wandb.finish()
     trial.suggest_int("udepth", 3, 6)
-    trial.suggest_categorical("startfeature", [64])
-    trial.suggest_categorical("datasize", [512])
+    trial.suggest_categorical("startfeature", [16, 32, 64])
+    trial.suggest_categorical("datasize", [1024])
     trial.suggest_float('lr', 1e-6, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
 
-    # trial.suggest_categorical("udepth", [5])
+    # trial.suggest_categorical("udepth", [6])
     # trial.suggest_categorical("startfeature", [64])
-    # trial.suggest_categorical("datasize", [512])
+    # trial.suggest_categorical("datasize", [1024])
     # trial.suggest_float('lr', 1e-5, 1e-1, log=True)
     # trial.suggest_float('weight_decay', 1e-5, 1e-1, log=True)
 
@@ -49,21 +55,20 @@ def objective(trial):
 
     datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
-    group = "HyperOptSize1024"
     # initialise the wandb logger and name your wandb project
     wandb_logger = WandbLogger(project="ai2", group=group,
                                name=f"Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
-    checkpoint_dir = Path(os.path.dirname(__file__)).parent
-    checkpoint_dir = checkpoint_dir / "checkpoints"
+    checkpoint_dir = Path(os.path.dirname(
+        __file__)).parent / "checkpoints" / group / wandb_logger.experiment.id
     checkpoint_callback = ModelCheckpoint(
-        monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
-        every_n_epochs=1, filename='{group}-{trial.number}-{epoch}-{val-mse-loss:.2f}')
+        monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
+        every_n_epochs=1, filename=f'{group}-trial={trial.number}' + '-{epoch}-{val-loss:.2f}')
 
     # Optuna pruning callback prunes on number of epochs
-    pruning_callback = PyTorchLightningPruningCallback(trial, monitor='val-mse-loss')
+    pruning_callback = PyTorchLightningPruningCallback(trial, monitor='val-loss')
 
     nnodes = int(os.getenv("SLURM_NNODES"))
     trainer = Trainer(
@@ -76,11 +81,12 @@ def objective(trial):
         log_every_n_steps=20,
         precision='bf16-mixed',
         gradient_clip_val=100.0,
+        accumulate_grad_batches=3,
     )
 
     # tuner = Tuner(trainer)
 
-    # tuner.scale_batch_size(model, datamodule=datamodule, init_val=2)
+    # tuner.scale_batch_size(model, datamodule=datamodule, init_val=4, steps_per_trial=200, mode="binsearch")
 
     # # Run learning rate finder
     # lr_finder = tuner.lr_find(model, datamodule=datamodule, min_lr=5e-5, max_lr=1)
@@ -92,21 +98,25 @@ def objective(trial):
     # # update hparams of the model
     # model.hparams.lr = lr_finder.suggestion()
 
-    trainer.fit(model, datamodule=datamodule)
+    try:
+        trainer.fit(model, datamodule=datamodule)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        trainer.callback_metrics["val-loss"] = torch.tensor(torch.inf)
 
-    return trainer.callback_metrics["val-mse-loss"].item()
+    return trainer.callback_metrics["val-loss"].item()
 
 
 def run_optimization(n_trials=5):
     pruner = optuna.pruners.SuccessiveHalvingPruner(min_resource=3, reduction_factor=5)
     sampler = optuna.samplers.TPESampler(multivariate=True, n_startup_trials=20)
-    study_name = "asha-tpe-size1024"
-    study = optuna.create_study(
-        storage=f"sqlite:///optuna/{study_name}.db", study_name=study_name, direction='minimize',
-        pruner=pruner, sampler=sampler)
+
     # study = optuna.create_study(
-    #     direction='minimize',
+    #     storage=f"sqlite:///optuna/{group}.db", study_name=study_name, direction='minimize',
     #     pruner=pruner, sampler=sampler)
+    study = optuna.create_study(
+        direction='minimize',
+        pruner=pruner, sampler=sampler)
     study.optimize(objective, n_trials=n_trials)
 
     print("Best trial:")
@@ -120,4 +130,4 @@ def run_optimization(n_trials=5):
     return study
 
 
-study = run_optimization(n_trials=200)
+study = run_optimization(n_trials=150)
