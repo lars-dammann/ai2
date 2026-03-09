@@ -5,6 +5,7 @@ import lightning as pl
 from torchmetrics.regression import R2Score
 import torch
 import torch.nn as nn
+import wandb
 
 
 class CorrosionUNet(pl.LightningModule):
@@ -15,43 +16,88 @@ class CorrosionUNet(pl.LightningModule):
         self.learning_rate = model_config["lr"]
         self.weight_decay = model_config["weight_decay"]
         self.reconstruction_overlap = reconstruction_overlap
+        self.train_summary = False
+        self.val_summary = False
+        self.test_summary = False
 
     def forward(self, x):
         return self.model(x)
 
+    def _log_loss(self, loss_dict, prefix):
+        """
+        Log the losses for a given prefix (train, val or test)
+        """
+        for key, value in loss_dict.items():
+            self.log(prefix + '-' + key, value)
+            # self.log('best-' + prefix + '-' + key, value)
+
+    def _calc_losses(self, y_pred, y_target):
+        """
+        Calculate all losses and metrics for a batch
+        """
+        mae_loss = nn.functional.l1_loss(y_pred, y_target)
+        mse_loss = nn.functional.mse_loss(y_pred, y_target)
+        r2score = self._batch_r2score(y_pred, y_target)
+        corr = self._batch_pearson_corr(y_pred, y_target)
+        volume_loss_abs = torch.mean(
+            torch.abs(torch.sum(y_pred, dim=(1, 2, 3)) - torch.sum(y_target, dim=(1, 2, 3))))
+        volume_loss_sq = torch.mean(torch.square(
+            torch.sum(y_pred, dim=(1, 2, 3)) - torch.sum(y_target, dim=(1, 2, 3))))
+        return {"mae-loss": mae_loss, "mse-loss": mse_loss, "r2score": r2score,
+                "corr": corr, "volume-loss-abs": volume_loss_abs,
+                "volume-loss-sq": volume_loss_sq}
+
+    def on_fit_start(self):
+        """
+        Define the metrics to log the best values of the losses and scores
+        """
+        wandb_run = self.logger.experiment
+
+        scores = ["loss", "mae-loss", "mse-loss", "r2score",
+                  "corr", "volume-loss-abs", "volume-loss-sq"]
+        for score in scores:
+            for prefix in ["train", "val", "test"]:
+                summary = "min" if "loss" in score else "max"
+                # wandb_run.define_metric('best-' + prefix + '-' + score, summary=summary)
+                wandb_run.define_metric(prefix + '-' + score, summary=summary)
+
     def training_step(self, batch, batch_idx):
+        prefix = 'train'
         # x: (B,3,H,W) Imgage + (B,1,H,W) Height profile, y: (B,1,H,W) Height profile
         x, y_target = batch
         y_pred = self(x)
-        loss = nn.functional.mse_loss(y_pred, y_target)
-        self.log('train-mse-loss', loss)
-        self.log('train-r2score', self._batch_r2score(y_pred, y_target))
-        self.log('train-corr', self._batch_pearson_corr(y_pred, y_target))
-        return loss
+        losses = self._calc_losses(y_pred, y_target)
+        losses["loss"] = losses["mae-loss"]
+        self._log_loss(losses, prefix)
+        return losses["loss"]
 
     def validation_step(self, batch, batch_idx):
+        prefix = 'val'
         x, y_target = batch
         y_pred = self(x)
-        loss = nn.functional.mse_loss(y_pred, y_target)
-        self.log('val-mse-loss', loss)
-        self.log('val-r2score', self._batch_r2score(y_pred, y_target))
-        self.log('val-corr', self._batch_pearson_corr(y_pred, y_target))
-        return loss
+        losses = self._calc_losses(y_pred, y_target)
+        losses["loss"] = losses["mae-loss"]
+        self._log_loss(losses, prefix)
+        return losses["loss"]
 
     def test_step(self, batch, batch_idx):
+        prefix = 'test'
         x, y_target = batch
         y_pred = self(x)
-        loss = nn.functional.mse_loss(y_pred, y_target)
-        self.log('test-mse-loss', loss)
-        self.log('test-r2score', self._batch_r2score(y_pred, y_target))
-        self.log('test-corr', self._batch_pearson_corr(y_pred, y_target))
-        return loss
+        losses = self._calc_losses(y_pred, y_target)
+        losses["loss"] = losses["mae-loss"]
+        self._log_loss(losses, prefix)
+        return losses["loss"]
 
     def _batch_r2score(self, y_pred, y_target):
+        """Calculate R2 score for every sample in the batch and return the mean R2 score over the batch"""
         r2score = R2Score(multioutput="raw_values")
         return torch.mean(r2score(y_pred.view(y_pred.shape[0], -1).t(), y_target.view(y_target.shape[0], -1).t()))
 
     def _batch_pearson_corr(self, y_pred, y_target):
+        """
+        Calculate Pearson correlation for every sample in the batch and return the mean correlation over the batch
+        """
         reshaped_y_pred = y_pred.view(y_pred.shape[0], -1)
         reshaped_y_target = y_target.view(y_target.shape[0], -1)
         norm = 1/(torch.std(reshaped_y_pred, dim=1)
@@ -65,7 +111,7 @@ class CorrosionUNet(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx):
         """
-        Make a prediction for every
+        Make a prediction for every sample in the batch
         """
         x, sample_info = batch
         y_pred = self(x)
@@ -73,6 +119,9 @@ class CorrosionUNet(pl.LightningModule):
         return self._reconstruct_height_profiles(y_pred, sample_info)
 
     def _reconstruct_height_profiles(self, y_pred, sample_info):
+        """
+        Reconstructs the height profiles from the predicted patches and denormalizes them
+        """
         # Get the normalization values to denormalize after reconstruction
         normalization = sample_info.pop("normalization")
         normalizer = Normalizer(
@@ -100,6 +149,9 @@ class CorrosionUNet(pl.LightningModule):
         return predicted_height_profiles, sample_ids
 
     def _reconstruct_single_height_profile(self, data, patch_positions, imageshape):
+        """
+        Reconstruct a single height profile from its patches
+        """
         reconstructed_profile = torch.full((1, *imageshape), torch.nan)
         patchshape = data.shape[-2:]
 
@@ -133,7 +185,9 @@ class CorrosionUNet(pl.LightningModule):
         return reconstructed_profile
 
     def _determine_crop(self, pos, min_pos, max_pos):
-        """Determine if the patch has to be cropped at the borders"""
+        """
+        Determine if the patch has to be cropped at the borders
+        """
         start_crop = self.reconstruction_overlap
         end_crop = self.reconstruction_overlap
 
