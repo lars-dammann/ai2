@@ -15,6 +15,7 @@ class CorrosionUNet(pl.LightningModule):
         self.model = UNet(model_config, in_channels=4, out_channels=1)
         self.learning_rate = model_config["lr"]
         self.weight_decay = model_config["weight_decay"]
+        self.volume_error_weight = model_config["volume_error_weight"]
         self.reconstruction_overlap = reconstruction_overlap
         self.train_summary = False
         self.val_summary = False
@@ -39,10 +40,10 @@ class CorrosionUNet(pl.LightningModule):
         mse_loss = nn.functional.mse_loss(y_pred, y_target)
         r2score = self._batch_r2score(y_pred, y_target)
         corr = self._batch_pearson_corr(y_pred, y_target)
-        volume_loss_abs = torch.mean(
-            torch.abs(torch.sum(y_pred, dim=(1, 2, 3)) - torch.sum(y_target, dim=(1, 2, 3))))
-        volume_loss_sq = torch.mean(torch.square(
-            torch.sum(y_pred, dim=(1, 2, 3)) - torch.sum(y_target, dim=(1, 2, 3))))
+        target_sum = torch.sum(y_target, dim=(1, 2, 3))
+        pred_sum = torch.sum(y_pred, dim=(1, 2, 3))
+        volume_loss_abs = torch.mean(torch.abs(pred_sum - target_sum) / torch.abs(target_sum))
+        volume_loss_sq = torch.mean(torch.square((pred_sum - target_sum) / torch.abs(target_sum)))
         return {"mae-loss": mae_loss, "mse-loss": mse_loss, "r2score": r2score,
                 "corr": corr, "volume-loss-abs": volume_loss_abs,
                 "volume-loss-sq": volume_loss_sq}
@@ -61,33 +62,22 @@ class CorrosionUNet(pl.LightningModule):
                 # wandb_run.define_metric('best-' + prefix + '-' + score, summary=summary)
                 wandb_run.define_metric(prefix + '-' + score, summary=summary)
 
-    def training_step(self, batch, batch_idx):
-        prefix = 'train'
-        # x: (B,3,H,W) Imgage + (B,1,H,W) Height profile, y: (B,1,H,W) Height profile
+    def _step(self, batch, prefix):
         x, y_target = batch
         y_pred = self(x)
         losses = self._calc_losses(y_pred, y_target)
-        losses["loss"] = losses["mae-loss"]
+        losses["loss"] = losses["mae-loss"] + self.volume_error_weight * losses["volume-loss-sq"]
         self._log_loss(losses, prefix)
         return losses["loss"]
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, 'train')
 
     def validation_step(self, batch, batch_idx):
-        prefix = 'val'
-        x, y_target = batch
-        y_pred = self(x)
-        losses = self._calc_losses(y_pred, y_target)
-        losses["loss"] = losses["mae-loss"]
-        self._log_loss(losses, prefix)
-        return losses["loss"]
+        return self._step(batch, 'val')
 
     def test_step(self, batch, batch_idx):
-        prefix = 'test'
-        x, y_target = batch
-        y_pred = self(x)
-        losses = self._calc_losses(y_pred, y_target)
-        losses["loss"] = losses["mae-loss"]
-        self._log_loss(losses, prefix)
-        return losses["loss"]
+        return self._step(batch, 'test')
 
     def _batch_r2score(self, y_pred, y_target):
         """Calculate R2 score for every sample in the batch and return the mean R2 score over the batch"""
