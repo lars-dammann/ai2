@@ -57,7 +57,7 @@ class UNet(nn.Module):
 
         self.bottleneck = DoubleConv(head_features[-1], last_feature)
         self.final_conv = nn.Conv2d(first_feature, out_channels, kernel_size=1)
-        self.scale = torch.nn.Parameter(torch.tensor(1.0))
+        # self.scale = torch.nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
         skip_connections = []
@@ -84,7 +84,8 @@ class UNet(nn.Module):
             x = self.upconv[index](x)
 
         # Final convolution to required output channel
-        return self.final_conv(x) * self.scale
+        # return self.final_conv(x) * self.scale
+        return self.final_conv(x)
 
 
 if __name__ == "__main__":
