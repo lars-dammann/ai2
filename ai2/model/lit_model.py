@@ -32,18 +32,18 @@ class CorrosionUNet(pl.LightningModule):
             self.log(prefix + '-' + key, value)
             # self.log('best-' + prefix + '-' + key, value)
 
-    def _calc_losses(self, y_pred, y_target):
+    def _calc_losses(self, y_pred, y_target, mask):
         """
         Calculate all losses and metrics for a batch
         """
-        mae_loss = nn.functional.l1_loss(y_pred, y_target)
-        mse_loss = nn.functional.mse_loss(y_pred, y_target)
-        r2score = self._batch_r2score(y_pred, y_target)
-        corr = self._batch_pearson_corr(y_pred, y_target)
-        target_sum = torch.sum(y_target, dim=(1, 2, 3))
-        pred_sum = torch.sum(y_pred, dim=(1, 2, 3))
-        volume_loss_abs = torch.mean(torch.abs(pred_sum - target_sum) / torch.abs(target_sum))
-        volume_loss_sq = torch.mean(torch.square((pred_sum - target_sum) / torch.abs(target_sum)))
+        mae_loss = nn.functional.l1_loss(y_pred[~mask], y_target[~mask])
+        mse_loss = nn.functional.mse_loss(y_pred[~mask], y_target[~mask])
+
+        n_pixels = torch.sum((~mask), dim=(1, 2, 3))
+        r2score = self._batch_r2score(y_pred[~mask], y_target[~mask], n_pixels)
+        corr = self._batch_pearson_corr(y_pred[~mask], y_target[~mask], n_pixels)
+        volume_loss_abs, volume_loss_sq = self._calc_volume_loss(y_pred[~mask], y_target[~mask], n_pixels)
+
         return {"mae-loss": mae_loss, "mse-loss": mse_loss, "r2score": r2score,
                 "corr": corr, "volume-loss-abs": volume_loss_abs,
                 "volume-loss-sq": volume_loss_sq}
@@ -63,9 +63,9 @@ class CorrosionUNet(pl.LightningModule):
                 wandb_run.define_metric(prefix + '-' + score, summary=summary)
 
     def _step(self, batch, prefix):
-        x, y_target = batch
+        x, y_target, mask = batch
         y_pred = self(x)
-        losses = self._calc_losses(y_pred, y_target)
+        losses = self._calc_losses(y_pred, y_target, mask)
         losses["loss"] = losses["mae-loss"] + self.volume_error_weight * losses["volume-loss-sq"]
         self._log_loss(losses, prefix)
         return losses["loss"]
@@ -79,25 +79,48 @@ class CorrosionUNet(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._step(batch, 'test')
 
-    def _batch_r2score(self, y_pred, y_target):
+    def _batch_r2score(self, y_pred, y_target, lengths):
         """Calculate R2 score for every sample in the batch and return the mean R2 score over the batch"""
-        r2score = R2Score(multioutput="raw_values")
-        return torch.mean(r2score(y_pred.view(y_pred.shape[0], -1).t(), y_target.view(y_target.shape[0], -1).t()))
+        res_sum_squared = self._segment_sum((y_target - y_pred) ** 2, lengths=lengths)
+        total_sum_squared = self._segment_sum((y_target - torch.repeat_interleave(self._calc_segment_mean(y_target, lengths), lengths)) ** 2, lengths=lengths)
+        return torch.mean(1 - res_sum_squared / total_sum_squared)
 
-    def _batch_pearson_corr(self, y_pred, y_target):
+    def _batch_pearson_corr(self, y_pred, y_target, lengths):
         """
         Calculate Pearson correlation for every sample in the batch and return the mean correlation over the batch
         """
-        reshaped_y_pred = y_pred.view(y_pred.shape[0], -1)
-        reshaped_y_target = y_target.view(y_target.shape[0], -1)
-        norm = 1/(torch.std(reshaped_y_pred, dim=1)
-                  * torch.std(reshaped_y_target, dim=1) * (reshaped_y_pred.shape[1] - 1))
-        y_pred_mean = torch.mean(reshaped_y_pred, dim=1, keepdim=True)
-        y_target_mean = torch.mean(reshaped_y_pred, dim=1, keepdim=True)
-        return torch.mean(norm * torch.sum(
-            (reshaped_y_pred - y_pred_mean) *
-            (reshaped_y_target - y_target_mean),
-            dim=1))
+        norm = 1/(self._calc_segment_std(y_pred, lengths) * self._calc_segment_std(y_target, lengths) * (lengths - 1))
+        y_pred_mean = self._calc_segment_mean(y_pred, lengths)
+        y_target_mean = self._calc_segment_mean(y_target, lengths)
+        return torch.mean(norm * self._segment_sum((y_pred - torch.repeat_interleave(y_pred_mean, lengths)) * (y_target - torch.repeat_interleave(y_target_mean, lengths)), lengths))
+
+    def _calc_segment_std(self, data, lengths):
+        """
+        Calculate the standard deviation of the predicted height values for every sample in the batch
+        """
+        mean = torch.segment_reduce(data, reduce="mean", lengths=lengths)
+        mean_of_squares = torch.segment_reduce(data**2, reduce="mean", lengths=lengths)
+        return torch.sqrt(mean_of_squares - mean**2)
+
+    def _segment_sum(self, data, lengths):
+        """
+        Calculate the sum of the predicted height values for every sample in the batch
+        """
+        return torch.segment_reduce(data, reduce="sum", lengths=lengths)
+
+    def _calc_segment_mean(self, data, lengths):
+        """
+        Calculate the mean of the predicted height values for every sample in the batch
+        """
+        return torch.segment_reduce(data, reduce="mean", lengths=lengths)
+
+    def _calc_volume_loss(self, y_pred, y_target, lengths):
+        """
+        Calculate the absolute and squared error of the predicted volume loss compared to the target volume loss
+        """
+        pred_sum = self._segment_sum(y_pred, lengths)
+        target_sum = self._segment_sum(y_target, lengths)
+        return torch.mean(torch.abs((pred_sum - target_sum) / target_sum)), torch.mean(torch.square((pred_sum - target_sum) / target_sum))
 
     def predict_step(self, batch, batch_idx):
         """

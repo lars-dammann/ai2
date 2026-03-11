@@ -67,7 +67,7 @@ class CorrosionDataset(Dataset):
         data = self.normalizer.normalize_masked(data, mask)
 
         # Split the data back to before and after and return
-        return data[:before_dim, :, :], data[before_dim:, :, :]
+        return data[:before_dim, :, :], data[before_dim:, :, :], mask.to(bool)
 
     def _get_normalizer(self):
         """
