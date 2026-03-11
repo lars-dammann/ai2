@@ -2,7 +2,7 @@
     "datamodule": {
         "datadir": "/home/cld9301/WORK/repos/ai2/data",
         "batch_size": 10,
-        "datasize": 512,
+        "datasize": 1024,
         "normalization": {
             "before": {
                 "image": {
@@ -51,9 +51,10 @@
         }
     },
     "unet": {
-        "udepth": 6,
-        "startfeature": 128,
-        "lr": 1e-1,
-        "weight_decay": 1e-1
+        "udepth": 5,
+        "startfeature": 16,
+        "lr": 0.0013070857777695486,
+        "weight_decay": 1e-1,
+        "volume_error_weight": 5.0
     }
 }
