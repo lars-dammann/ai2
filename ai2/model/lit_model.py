@@ -42,11 +42,10 @@ class CorrosionUNet(pl.LightningModule):
         n_pixels = torch.sum((~mask), dim=(1, 2, 3))
         r2score = self._batch_r2score(y_pred[~mask], y_target[~mask], n_pixels)
         corr = self._batch_pearson_corr(y_pred[~mask], y_target[~mask], n_pixels)
-        volume_loss_abs, volume_loss_sq = self._calc_volume_loss(y_pred[~mask], y_target[~mask], n_pixels)
+        volume_loss_abs= self._calc_volume_loss(y_pred[~mask], y_target[~mask], n_pixels)
 
         return {"mae-loss": mae_loss, "mse-loss": mse_loss, "r2score": r2score,
-                "corr": corr, "volume-loss-abs": volume_loss_abs,
-                "volume-loss-sq": volume_loss_sq}
+                "corr": corr, "volume-loss-abs": volume_loss_abs}
 
     def on_fit_start(self):
         """
@@ -55,7 +54,7 @@ class CorrosionUNet(pl.LightningModule):
         wandb_run = self.logger.experiment
 
         scores = ["loss", "mae-loss", "mse-loss", "r2score",
-                  "corr", "volume-loss-abs", "volume-loss-sq"]
+                  "corr", "volume-loss-abs"]
         for score in scores:
             for prefix in ["train", "val", "test"]:
                 summary = "min" if "loss" in score else "max"
@@ -66,7 +65,7 @@ class CorrosionUNet(pl.LightningModule):
         x, y_target, mask = batch
         y_pred = self(x)
         losses = self._calc_losses(y_pred, y_target, mask)
-        losses["loss"] = losses["mae-loss"] + self.volume_error_weight * losses["volume-loss-sq"]
+        losses["loss"] = losses["mae-loss"] + self.volume_error_weight * losses["volume-loss-abs"]
         self._log_loss(losses, prefix)
         return losses["loss"]
 
@@ -118,9 +117,9 @@ class CorrosionUNet(pl.LightningModule):
         """
         Calculate the absolute and squared error of the predicted volume loss compared to the target volume loss
         """
-        pred_sum = self._segment_sum(y_pred, lengths)
-        target_sum = self._segment_sum(y_target, lengths)
-        return torch.mean(torch.abs((pred_sum - target_sum) / target_sum)), torch.mean(torch.square((pred_sum - target_sum) / target_sum))
+        pred_mean = self._calc_segment_mean(y_pred, lengths)
+        target_mean = self._calc_segment_mean(y_target, lengths)
+        return torch.mean(torch.abs((pred_mean - target_mean) / target_mean))
 
     def predict_step(self, batch, batch_idx):
         """
