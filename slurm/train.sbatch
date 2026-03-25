@@ -16,7 +16,16 @@ nvidia-smi
 source $HOME/.bashrc
 micromamba activate ai2
 
-output_dir=slurm/output/train/$SLURM_JOBID
-# mkdir $output_dir
+work_dir="/mnt/local_scratch/work/ai2"
+source_dir="/home/cld9301/WORK/repos/ai2"
+
+rsync -avu --delete $source_dir/ai2 $work_dir
+rsync -avu --delete $source_dir/configs $work_dir
+
+output_dir=$source_dir/slurm/output/train/$SLURM_JOBID
 
 time python -u ai2/train.py >> $output_dir/train.log
+
+rsync -avu "$work_dir/checkpoints/" "$source_dir/checkpoints"
+rsync -avu "$work_dir/lightning_logs/" "$source_dir/lightning_logs"
+rsync -avu "$work_dir/wandb/" "$source_dir/wandb"

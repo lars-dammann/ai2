@@ -1,6 +1,6 @@
 {
     "datamodule": {
-        "datadir": "/home/cld9301/WORK/repos/ai2/data",
+        "datadir": "/mnt/local_scratch/work/ai2/data",
         "batch_size": 10,
         "datasize": 1024,
         "normalization": {
