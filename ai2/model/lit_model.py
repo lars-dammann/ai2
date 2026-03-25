@@ -15,7 +15,6 @@ class CorrosionUNet(pl.LightningModule):
         self.model = UNet(model_config, in_channels=4, out_channels=1)
         self.learning_rate = model_config["lr"]
         self.weight_decay = model_config["weight_decay"]
-        self.volume_error_weight = model_config["volume_error_weight"]
         self.reconstruction_overlap = reconstruction_overlap
         self.train_summary = False
         self.val_summary = False
@@ -65,7 +64,7 @@ class CorrosionUNet(pl.LightningModule):
         x, y_target, mask = batch
         y_pred = self(x)
         losses = self._calc_losses(y_pred, y_target, mask)
-        losses["loss"] = losses["mae-loss"] + self.volume_error_weight * losses["volume-loss-abs"]
+        losses["loss"] = losses["mae-loss"]
         self._log_loss(losses, prefix)
         return losses["loss"]
 

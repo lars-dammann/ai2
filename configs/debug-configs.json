@@ -55,6 +55,5 @@
         "startfeature": 16,
         "lr": 0.0017736283907784786,
         "weight_decay": 0.002446716772697151,
-        "volume_error_weight": 5e-3
     }
 }
