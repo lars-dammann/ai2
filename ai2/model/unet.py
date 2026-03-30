@@ -60,6 +60,9 @@ class UNet(nn.Module):
         # self.scale = torch.nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
+        # Extract input to add later to the output (residual connection)
+        residual = x[:, -1:].clone()
+
         skip_connections = []
 
         # Encoder
@@ -84,8 +87,7 @@ class UNet(nn.Module):
             x = self.upconv[index](x)
 
         # Final convolution to required output channel
-        # return self.final_conv(x) * self.scale
-        return self.final_conv(x)
+        return self.final_conv(x) + residual
 
 
 if __name__ == "__main__":
