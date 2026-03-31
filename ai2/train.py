@@ -32,7 +32,7 @@ model.apply(weights_init)
 datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
 # initialise the wandb logger and name your wandb project
-wandb_logger = WandbLogger(project="ai2", name=f"Default", log_model=True)
+wandb_logger = WandbLogger(project="ai2", name=f"Residual", log_model=True)
 wandb_logger.experiment.config.update(config)
 
 # Checkpoint callback
