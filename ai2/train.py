@@ -62,6 +62,6 @@ trainer = Trainer(
     )
 
 tuner = Tuner(trainer)
-tuner.scale_batch_size(model, datamodule=datamodule)
+# tuner.scale_batch_size(model, datamodule=datamodule)
 
 trainer.fit(model, datamodule=datamodule)
