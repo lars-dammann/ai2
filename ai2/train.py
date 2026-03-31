@@ -38,11 +38,11 @@ wandb_logger.experiment.config.update(config)
 # Checkpoint callback
 checkpoint_dir = Path(os.path.dirname(__file__)).parent
 checkpoint_dir = checkpoint_dir / "checkpoints"
-checkpoint_callback = ModelCheckpoint(monitor="val-mse-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val-mse-loss:.2f}')
+checkpoint_callback = ModelCheckpoint(monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1, filename='{epoch}-{val-loss:.2f}')
 
 # Early stopping callback
 early_stop_callback = EarlyStopping(
-    monitor='val-mse-loss',
+    monitor='val-loss',
     patience=20,
     verbose=False,
     mode='min'
