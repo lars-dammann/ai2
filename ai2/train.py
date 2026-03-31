@@ -29,7 +29,7 @@ config = get_config()
 model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)
 
-datamodule = CorrosionDataModule(datamodule_config=config["datamodule"], batch_size=16)
+datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
 # initialise the wandb logger and name your wandb project
 wandb_logger = WandbLogger(project="ai2", name=f"Default", log_model=True)
