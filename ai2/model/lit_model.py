@@ -79,8 +79,8 @@ class CorrosionUNet(pl.LightningModule):
 
     def _batch_r2score(self, y_pred, y_target, lengths):
         """Calculate R2 score for every sample in the batch and return the mean R2 score over the batch"""
-        res_sum_squared = self._segment_sum((y_target - y_pred) ** 2, lengths=lengths)
-        total_sum_squared = self._segment_sum((y_target - torch.repeat_interleave(self._calc_segment_mean(y_target, lengths), lengths)) ** 2, lengths=lengths)
+        res_sum_squared = self._calc_segment_sum((y_target - y_pred) ** 2, lengths=lengths)
+        total_sum_squared = self._calc_segment_sum((y_target - torch.repeat_interleave(self._calc_segment_mean(y_target, lengths), lengths)) ** 2, lengths=lengths)
         return torch.mean(1 - res_sum_squared / total_sum_squared)
 
     def _batch_pearson_corr(self, y_pred, y_target, lengths):
@@ -90,7 +90,7 @@ class CorrosionUNet(pl.LightningModule):
         norm = 1/(self._calc_segment_std(y_pred, lengths) * self._calc_segment_std(y_target, lengths) * (lengths - 1))
         y_pred_mean = self._calc_segment_mean(y_pred, lengths)
         y_target_mean = self._calc_segment_mean(y_target, lengths)
-        return torch.mean(norm * self._segment_sum((y_pred - torch.repeat_interleave(y_pred_mean, lengths)) * (y_target - torch.repeat_interleave(y_target_mean, lengths)), lengths))
+        return torch.mean(norm * self._calc_segment_sum((y_pred - torch.repeat_interleave(y_pred_mean, lengths)) * (y_target - torch.repeat_interleave(y_target_mean, lengths)), lengths))
 
     def _calc_segment_std(self, data, lengths):
         """
@@ -100,7 +100,7 @@ class CorrosionUNet(pl.LightningModule):
         mean_of_squares = torch.segment_reduce(data**2, reduce="mean", lengths=lengths)
         return torch.sqrt(mean_of_squares - mean**2)
 
-    def _segment_sum(self, data, lengths):
+    def _calc_segment_sum(self, data, lengths):
         """
         Calculate the sum of the predicted height values for every sample in the batch
         """
@@ -116,9 +116,9 @@ class CorrosionUNet(pl.LightningModule):
         """
         Calculate the absolute and squared error of the predicted volume loss compared to the target volume loss
         """
-        pred_mean = self._calc_segment_mean(y_pred, lengths)
-        target_mean = self._calc_segment_mean(y_target, lengths)
-        return torch.mean(torch.abs((pred_mean - target_mean) / target_mean))
+        pred_sum = self._calc_segment_sum(y_pred, lengths)
+        target_sum = self._calc_segment_sum(y_target, lengths)
+        return torch.mean(torch.abs((pred_sum - target_sum)))
 
     def predict_step(self, batch, batch_idx):
         """
