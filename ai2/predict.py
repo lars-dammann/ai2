@@ -40,6 +40,8 @@ model_dir = model_name + f"-{version}"
 # Get the config of the producing run to be able to load the model and datamodule with the same config
 api = wandb.Api()
 config = api.run(f"lars-dammann-phd/ai2/{run_id}").config
+# Override datadir to local path
+config["datamodule"]["datadir"] = "/home/cld9301/WORK/repos/ai2/data"
 
 # Get model artifact and download it to a local directory
 artifact = api.artifact(f"lars-dammann-phd/ai2/model-{run_id}:{version}")
