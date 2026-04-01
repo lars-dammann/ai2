@@ -43,7 +43,7 @@ model.apply(weights_init)
 datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
 # initialise the wandb logger and name your wandb project
-wandb_logger = WandbLogger(project="ai2", group="Debug", log_model=True)
+wandb_logger = WandbLogger(project="ai2", group="Debug", log_model=False, offline=True)
 wandb_logger.experiment.config.update(config)
 
 # Checkpoint callback
@@ -71,6 +71,7 @@ trainer = Trainer(
     num_nodes=1,
     log_every_n_steps=1,
     precision='bf16-mixed',
+    num_sanity_val_steps=0,
     # max_steps=2
     # limit_train_batches=1,
     # limit_val_batches=1,
