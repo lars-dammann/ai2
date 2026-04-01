@@ -52,8 +52,10 @@ class CorrosionDataset(Dataset):
 
         # Load the mask
         mask = get_mask(self.mask_dir, sample_id)
+        # Invert mask to make more suitable for the transforms
+        mask = ~mask
 
-        # Concatenate mask to data so it is transformed equally as data
+        # Concatenate inverse mask to data so it is transformed equally as data
         data_mask = torch.cat((data, mask), dim=0)
 
         # Conduct optional transforms of the data
@@ -63,11 +65,16 @@ class CorrosionDataset(Dataset):
         data = data_mask[:-1, :, :]
         mask = data_mask[-1:, :, :]
 
+        # Floor the mask (any value between 0 and 1 should be masked) and convert to bool
+        mask = torch.floor(mask).to(bool)
+        # Reinvert the mask
+        mask = ~mask
+
         # Normalize the data
         data = self.normalizer.normalize_masked(data, mask)
 
         # Split the data back to before and after and return
-        return data[:before_dim, :, :], data[before_dim:, :, :], mask.to(bool)
+        return data[:before_dim, :, :], data[before_dim:, :, :], mask
 
     def _get_normalizer(self):
         """
@@ -192,7 +199,8 @@ class CorrosionDataModule(pl.LightningDataModule):
         self.reconstruction_overlap = reconstruction_overlap
         self.batch_size = datamodule_config["batch_size"]
         self.train_transform = v2.Compose(
-            [v2.RandomCrop(self.data_size, pad_if_needed=True),
+            [v2.RandomRotation(degrees=(0, 90), interpolation=v2.InterpolationMode.BILINEAR),
+             v2.RandomCrop(self.data_size, pad_if_needed=True),
              v2.RandomHorizontalFlip(),
              v2.RandomVerticalFlip()])
         self.val_transform = v2.Compose(
