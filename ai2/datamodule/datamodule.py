@@ -204,7 +204,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         self.reconstruction_overlap = reconstruction_overlap
         self.batch_size = datamodule_config["batch_size"]
         self.train_transform = v2.Compose(
-            [v2.RandomRotation(degrees=(0, 90), interpolation=v2.InterpolationMode.BILINEAR),
+            [# v2.RandomRotation(degrees=(0, 90), interpolation=v2.InterpolationMode.BILINEAR),
              v2.RandomCrop(self.data_size, pad_if_needed=True),
              v2.Lambda(CorrosionDataModule.random_rot90),
              v2.RandomHorizontalFlip(),
@@ -234,8 +234,10 @@ class CorrosionDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str):
         if stage == "fit":
+            # self.train_data = CorrosionDataset(
+            #     self.data_dir / "train", self.config, transform=self.train_transform, photometric_transform=self.photometric_transform)
             self.train_data = CorrosionDataset(
-                self.data_dir / "train", self.config, transform=self.train_transform, photometric_transform=self.photometric_transform)
+                self.data_dir / "train", self.config, transform=self.train_transform)
             self.val_data = CorrosionDataset(
                 self.data_dir / "val", self.config, transform=self.val_transform)
         if stage == "test":
