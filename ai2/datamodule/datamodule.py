@@ -21,7 +21,7 @@ class CorrosionDataset(Dataset):
     The target data is a (1, H, W) height profile.
     """
 
-    def __init__(self, data_dir, config, transform=None):
+    def __init__(self, data_dir, config, transform=None, photometric_transform=None):
         self.data_dir = Path(data_dir)
         self.before_image_dir = self.data_dir / "before/image"
         self.before_height_dir = self.data_dir / "before/height"
@@ -30,6 +30,7 @@ class CorrosionDataset(Dataset):
         self.sample_ids = [name[:-4]
                            for name in os.listdir(self.before_image_dir)]
         self.transform = transform
+        self.photometric_transform = photometric_transform
         self.config = config
 
         self.normalizer = self._get_normalizer()
@@ -69,6 +70,10 @@ class CorrosionDataset(Dataset):
         mask = torch.floor(mask).to(bool)
         # Reinvert the mask
         mask = ~mask
+
+        # Apply photometric transforms if specified
+        if self.photometric_transform is not None:
+            data[:3, :, :] = self.photometric_transform(data[:3, :, :])
 
         # Normalize the data
         data = self.normalizer.normalize_masked(data, mask)
@@ -203,6 +208,7 @@ class CorrosionDataModule(pl.LightningDataModule):
              v2.RandomCrop(self.data_size, pad_if_needed=True),
              v2.RandomHorizontalFlip(),
              v2.RandomVerticalFlip()])
+        self.photometric_transform = v2.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.05, hue=0.01)
         self.val_transform = v2.Compose(
             [v2.RandomCrop(self.data_size, pad_if_needed=True)])
 
@@ -222,7 +228,7 @@ class CorrosionDataModule(pl.LightningDataModule):
     def setup(self, stage: str):
         if stage == "fit":
             self.train_data = CorrosionDataset(
-                self.data_dir / "train", self.config, transform=self.train_transform)
+                self.data_dir / "train", self.config, transform=self.train_transform, photometric_transform=self.photometric_transform)
             self.val_data = CorrosionDataset(
                 self.data_dir / "val", self.config, transform=self.val_transform)
         if stage == "test":
