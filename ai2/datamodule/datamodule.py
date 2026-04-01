@@ -206,6 +206,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         self.train_transform = v2.Compose(
             [v2.RandomRotation(degrees=(0, 90), interpolation=v2.InterpolationMode.BILINEAR),
              v2.RandomCrop(self.data_size, pad_if_needed=True),
+             v2.Lambda(CorrosionDataModule.random_rot90),
              v2.RandomHorizontalFlip(),
              v2.RandomVerticalFlip()])
         self.photometric_transform = v2.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.05, hue=0.01)
@@ -216,6 +217,12 @@ class CorrosionDataModule(pl.LightningDataModule):
             self.num_workers = int(os.environ['SLURM_CPUS_PER_TASK'])
         except KeyError:
             self.num_workers = 2
+
+    @staticmethod
+    def random_rot90(img):
+        # img: torch tensor, shape [C,H,W]
+        k = torch.randint(0, 4, (1,)).item()  # 0,1,2,3
+        return torch.rot90(img, k, dims=[1,2])
 
     @staticmethod
     def predict_coallate_function(batch):
