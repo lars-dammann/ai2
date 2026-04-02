@@ -29,8 +29,9 @@ class SaveHeightPrediction(Callback):
         for index, id in enumerate(sample_ids):
             np.save(self.save_path / f"{id}.npy", torch.squeeze(profiles[index]))
 
+
 # Load model from checkpoint
-run_id = "dh1xlxcl"
+run_id = "ctl6mpgs"
 predict_datasets = ["test", "val", "train"]
 version = "best"
 

@@ -19,8 +19,7 @@ from utils.get_data import get_config
 
 seed_everything(0, workers=True)
 
-group = "MAELoss"
-# group = "Test"
+group = "Residual"
 
 
 def weights_init(model):
@@ -41,12 +40,6 @@ def objective(trial):
     trial.suggest_float('lr', 1e-6, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
 
-    # trial.suggest_categorical("udepth", [6])
-    # trial.suggest_categorical("startfeature", [64])
-    # trial.suggest_categorical("datasize", [1024])
-    # trial.suggest_float('lr', 1e-5, 1e-1, log=True)
-    # trial.suggest_float('weight_decay', 1e-5, 1e-1, log=True)
-
     # Load and unite configs
     config = get_config(trial.params)
 
@@ -57,7 +50,7 @@ def objective(trial):
 
     # initialise the wandb logger and name your wandb project
     wandb_logger = WandbLogger(project="ai2", group=group,
-                               name=f"Trial {trial.number}", log_model=True)
+                               name=f"{group} Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
@@ -85,18 +78,7 @@ def objective(trial):
     )
 
     # tuner = Tuner(trainer)
-
     # tuner.scale_batch_size(model, datamodule=datamodule, init_val=4, steps_per_trial=200, mode="binsearch")
-
-    # # Run learning rate finder
-    # lr_finder = tuner.lr_find(model, datamodule=datamodule, min_lr=5e-5, max_lr=1)
-    # # Results can be found in
-    # print(lr_finder.results)
-    # # Plot with
-    # fig = lr_finder.plot(suggest=True)
-    # fig.savefig("lr-tune-lin.pdf")
-    # # update hparams of the model
-    # model.hparams.lr = lr_finder.suggestion()
 
     try:
         trainer.fit(model, datamodule=datamodule)
@@ -108,12 +90,9 @@ def objective(trial):
 
 
 def run_optimization(n_trials=5):
-    pruner = optuna.pruners.SuccessiveHalvingPruner(min_resource=3, reduction_factor=5)
+    pruner = optuna.pruners.SuccessiveHalvingPruner(min_resource=3, reduction_factor=4)
     sampler = optuna.samplers.TPESampler(multivariate=True, n_startup_trials=20)
 
-    # study = optuna.create_study(
-    #     storage=f"sqlite:///optuna/{group}.db", study_name=study_name, direction='minimize',
-    #     pruner=pruner, sampler=sampler)
     study = optuna.create_study(
         direction='minimize',
         pruner=pruner, sampler=sampler)
@@ -130,4 +109,4 @@ def run_optimization(n_trials=5):
     return study
 
 
-study = run_optimization(n_trials=150)
+study = run_optimization(n_trials=200)
