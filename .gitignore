@@ -198,6 +198,8 @@ wandb/
 slurm/output
 lightning_logs/
 optuna/
+slurm/
+start_slurm_script.sh
 
 # Model Checkpoints and Artifacts
 checkpoints/
