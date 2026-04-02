@@ -9,7 +9,13 @@
 #SBATCH --output=/home/cld9301/WORK/repos/ai2/slurm/output/train/%j/output.%j        # Where to write results
 #SBATCH --error=/home/cld9301/WORK/repos/ai2/slurm/output/train/%j/error.%j
 
-export CUDA_VISIBLE_DEVICES=0    # Very important to make the GPUs visible
+datetime=$1
+task=$2
+
+echo "Running task: $task in folder: $datetime"
+
+# Make the GPUs visible
+export CUDA_VISIBLE_DEVICES=0
 
 nvidia-smi
 
@@ -19,12 +25,13 @@ micromamba activate ai2
 work_dir="/mnt/local_scratch/work/ai2"
 source_dir="/home/cld9301/WORK/repos/ai2"
 
-rsync -avu --delete $source_dir/ai2 $work_dir
-rsync -avu --delete $source_dir/configs $work_dir
+rsync -avu --delete $source_dir/transfer/$datetime $work_dir
 
 output_dir=$source_dir/slurm/output/train/$SLURM_JOBID
 
-time python -u ai2/train.py >> $output_dir/train.log
+cd $source_dir/transfer/$datetime
+
+time python -u ai2/$task.py >> $output_dir/$task.log
 
 rsync -avu "$work_dir/checkpoints/" "$source_dir/checkpoints"
 rsync -avu "$work_dir/lightning_logs/" "$source_dir/lightning_logs"
