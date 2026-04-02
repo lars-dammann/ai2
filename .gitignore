@@ -190,21 +190,18 @@ cython_debug/
 # Data
 rawdata/
 data/
+transfer/
+results/predictions
 
-# WandB logger
+# Logs and logger
 wandb/
-
-# Slurm output
 slurm/output
-
-# Lighnting logs
 lightning_logs/
+optuna/
 
-# Model Checkpoints
+# Model Checkpoints and Artifacts
 checkpoints/
-
-# WandB Artifacts
 artifacts/
 
-# Predictions
-results/predictions
+# Miscellaneous
+misc/
