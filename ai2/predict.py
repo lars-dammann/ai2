@@ -2,22 +2,19 @@ from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
 from utils.get_data import get_config
 
-from pathlib import Path
-
 import torch
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.tuner import Tuner
 from lightning.pytorch.callbacks import Callback
-import wandb
+from pathlib import Path
 import numpy as np
+import wandb
 
 seed_everything(0, workers=True)
 
 
 class SaveHeightPrediction(Callback):
-    """
-    Callback that saves every batch of the predictions to file
-    """
+    """Save predicted height profiles to disk."""
 
     def __init__(self, save_path):
         super().__init__()
@@ -26,8 +23,8 @@ class SaveHeightPrediction(Callback):
     def on_predict_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
         profiles, sample_ids = outputs
         self.save_path.mkdir(parents=True, exist_ok=True)
-        for index, id in enumerate(sample_ids):
-            np.save(self.save_path / f"{id}.npy", torch.squeeze(profiles[index]))
+        for index, sample_id in enumerate(sample_ids):
+            np.save(self.save_path / f"{sample_id}.npy", torch.squeeze(profiles[index]))
 
 
 # Load model from checkpoint

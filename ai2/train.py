@@ -2,15 +2,14 @@ from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
 from utils.get_data import get_config
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 import torch.nn as nn
-from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.tuner import Tuner
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.tuner import Tuner
 
 seed_everything(0, workers=True)
 
@@ -43,14 +42,6 @@ checkpoint_dir = checkpoint_dir / "checkpoints"
 checkpoint_callback = ModelCheckpoint(
     monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1,
     filename='{epoch}-{val-loss:.2f}')
-
-# Early stopping callback
-early_stop_callback = EarlyStopping(
-    monitor='val-loss',
-    patience=20,
-    verbose=False,
-    mode='min'
-)
 
 nnodes = int(os.getenv("SLURM_NNODES"))
 trainer = Trainer(

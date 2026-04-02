@@ -7,7 +7,6 @@ import os
 
 import torch.nn as nn
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.utilities import grad_norm
@@ -52,15 +51,6 @@ checkpoint_callback = ModelCheckpoint(
     monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1,
     filename='{epoch}-{val-loss:.2f}')
 
-# Early stopping callback
-early_stop_callback = EarlyStopping(
-    monitor='val-loss',
-    patience=20,
-    verbose=False,
-    mode='min'
-)
-
-# nnodes = int(os.getenv("SLURM_NNODES"))
 trainer = Trainer(
     devices="auto",
     accelerator="auto",
