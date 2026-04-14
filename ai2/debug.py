@@ -34,7 +34,8 @@ def weights_init(model):
 
 
 # Load and unite configs
-config = get_config(file="debug-configs.json")
+config_file =  Path(__file__).parent.parent / "configs" / "debug-configs.json"
+config = get_config(config_file)
 
 model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)

@@ -24,21 +24,23 @@ def weights_init(model):
         nn.init.constant_(model.bias, 0)
 
 
-# Load and unite configs
-config = get_config()
+# Load config
+config_file = Path(os.getenv("AI2_CONFIG_FILE"))
+config = get_config(config_file)
 
 model = CorrosionUNet(model_config=config["unet"])
 model.apply(weights_init)
 
-datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
+data_dir = Path(os.getenv("AI2_DATA_DIR"))
+datamodule = CorrosionDataModule(data_dir=data_dir, datamodule_config=config["datamodule"])
 
 # initialise the wandb logger and name your wandb project
-wandb_logger = WandbLogger(project="ai2", name=f"ColorJitter", log_model=True)
+name = "ResidualBaseline"
+wandb_logger = WandbLogger(project="ai2", name=name, log_model=True)
 wandb_logger.experiment.config.update(config)
 
 # Checkpoint callback
-checkpoint_dir = Path(os.path.dirname(__file__)).parent
-checkpoint_dir = checkpoint_dir / "checkpoints"
+checkpoint_dir = Path(os.getenv("AI2_CHECKPOINT_DIR"))  / name
 checkpoint_callback = ModelCheckpoint(
     monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1,
     filename='{epoch}-{val-loss:.2f}')
@@ -50,7 +52,7 @@ trainer = Trainer(
     gradient_clip_val=1.0,
     logger=wandb_logger,
     callbacks=[checkpoint_callback],
-    max_epochs=400,
+    max_epochs=800,
     num_nodes=nnodes,
     log_every_n_steps=20,
     precision='bf16-mixed',

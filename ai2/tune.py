@@ -41,7 +41,8 @@ def objective(trial):
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
 
     # Load and unite configs
-    config = get_config(trial.params)
+    config_file = Path(os.getenv("AI2_CONFIG_FILE"))
+    config = get_config(config_file, trial.params)
 
     model = CorrosionUNet(model_config=config["unet"])
     model.apply(weights_init)
@@ -54,8 +55,7 @@ def objective(trial):
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
-    checkpoint_dir = Path(os.path.dirname(
-        __file__)).parent / "checkpoints" / group / wandb_logger.experiment.id
+    checkpoint_dir = Path(os.getenv("AI2_CHECKPOINT_DIR")) / group / trial.number
     checkpoint_callback = ModelCheckpoint(
         monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
         every_n_epochs=1, filename=f'{group}-trial={trial.number}' + '-{epoch}-{val-loss:.2f}')

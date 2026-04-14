@@ -42,8 +42,7 @@ for volume_error_weight in [0.0001, 0.0005]:
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
-    checkpoint_dir = Path(os.path.dirname(
-        __file__)).parent / "checkpoints" / group / wandb_logger.experiment.id
+    checkpoint_dir = Path(os.getenv("AI2_CHECKPOINT_DIR")) / group / name
     checkpoint_callback = ModelCheckpoint(
         monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1, every_n_epochs=1,
         filename=f'{group}-{name}-' + '{epoch}-{val-loss:.2f}')
