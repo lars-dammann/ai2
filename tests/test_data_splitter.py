@@ -119,6 +119,24 @@ def test_materialize_fold_and_validate_succeeds(splitter_paths: dict[str, object
     splitter.validate_splits()
 
 
+def test_materialize_fold_raises_when_overwrite_false(splitter_paths: dict[str, object]) -> None:
+    """Second materialization should fail when overwrite is disabled."""
+    splitter = _build_splitter(splitter_paths=splitter_paths, random_seed=9)
+    splitter.materialize_fold(clean_target_dir=True, overwrite=False)
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        splitter.materialize_fold(overwrite=False)
+
+
+def test_materialize_fold_succeeds_when_overwrite_true(splitter_paths: dict[str, object]) -> None:
+    """Second materialization should succeed when overwrite is enabled."""
+    splitter = _build_splitter(splitter_paths=splitter_paths, random_seed=9)
+    splitter.materialize_fold(clean_target_dir=True, overwrite=False)
+    splitter.materialize_fold(overwrite=True)
+
+    splitter.validate_splits()
+
+
 def test_validate_splits_detects_inconsistent_split(splitter_paths: dict[str, object]) -> None:
     """Validation should fail if one data branch is missing copied files."""
     splitter = _build_splitter(splitter_paths=splitter_paths, random_seed=7)
