@@ -8,12 +8,15 @@ import torch
 from utils.get_data import get_mask, get_image, get_height, load_config, get_config
 
 
+CONFIG_FILE = Path(__file__).resolve().parent / "fixtures" / "mock-config.json"
+
+
 class TestLoadConfig:
     """Test suite for load_config function"""
 
     def test_load_default_config(self):
         """Test loading the repository default config file"""
-        config = load_config(None)
+        config = load_config(CONFIG_FILE)
 
         assert isinstance(config, dict)
         assert "datamodule" in config
@@ -21,8 +24,8 @@ class TestLoadConfig:
 
     def test_load_config_with_specific_file(self):
         """Test loading a named config file from the configs directory"""
-        default_config = load_config(None)
-        named_config = load_config("configs.json")
+        default_config = load_config(CONFIG_FILE)
+        named_config = load_config(CONFIG_FILE)
 
         assert named_config == default_config
 
@@ -37,8 +40,8 @@ class TestGetConfig:
             "data": {"batch_size": 32}
         }
         with pytest.MonkeyPatch.context() as monkeypatch:
-            monkeypatch.setattr("utils.get_data.load_config", lambda file=None: test_config)
-            result = get_config()
+            monkeypatch.setattr("utils.get_data.load_config", lambda file: test_config)
+            result = get_config(file=CONFIG_FILE)
 
         assert result == test_config
 
@@ -46,8 +49,8 @@ class TestGetConfig:
         """Test get_config returns original config when new_config is None"""
         test_config = {"param1": 1, "param2": 2}
         with pytest.MonkeyPatch.context() as monkeypatch:
-            monkeypatch.setattr("utils.get_data.load_config", lambda file=None: test_config)
-            result = get_config(new_config=None)
+            monkeypatch.setattr("utils.get_data.load_config", lambda file: test_config)
+            result = get_config(file=CONFIG_FILE, new_config=None)
 
         assert result == test_config
 
@@ -58,8 +61,8 @@ class TestGetConfig:
             "data": {"batch_size": 32}
         }
         with pytest.MonkeyPatch.context() as monkeypatch:
-            monkeypatch.setattr("utils.get_data.load_config", lambda file=None: test_config)
-            result = get_config(new_config={"lr": 0.01})
+            monkeypatch.setattr("utils.get_data.load_config", lambda file: test_config)
+            result = get_config(file=CONFIG_FILE, new_config={"lr": 0.01})
 
         assert result == {
             "model": {"lr": 0.01, "depth": 3},
@@ -70,8 +73,8 @@ class TestGetConfig:
         """Test that get_config can add new keys"""
         test_config = {"existing": "value"}
         with pytest.MonkeyPatch.context() as monkeypatch:
-            monkeypatch.setattr("utils.get_data.load_config", lambda file=None: test_config)
-            result = get_config(new_config={"new_key": "new_value"})
+            monkeypatch.setattr("utils.get_data.load_config", lambda file: test_config)
+            result = get_config(file=CONFIG_FILE, new_config={"new_key": "new_value"})
 
         assert result == {"existing": "value", "new_key": "new_value"}
 
