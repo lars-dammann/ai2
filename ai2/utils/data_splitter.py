@@ -205,13 +205,14 @@ class CrossValidationDataSplitter:
             if split_dir.exists():
                 shutil.rmtree(split_dir)
 
-    def _copy_files(self, id_list: Sequence[str], fold_index: int, split_name: str) -> None:
+    def _copy_dataset(self, id_list: Sequence[str], fold_index: int, split_name: str, overwrite: bool = False) -> None:
         """Copy all files matching sample IDs into one split directory.
 
         Args:
             id_list: Sample base IDs to copy.
             fold_index: Zero-based fold index.
             split_name: Split directory name, one of train/val/test.
+            overwrite: If True, overwrite existing files in the target directory.
 
         Returns:
             None.
@@ -220,34 +221,37 @@ class CrossValidationDataSplitter:
             for data_type in [self.IMAGE_PATH, self.HEIGHT_PATH]:
                 source_dir = self.source_dir / time_name / data_type
                 target_dir = self.target_dir / f"{fold_index}" / split_name / time_name / data_type
-                target_dir.mkdir(parents=True, exist_ok=True)
-                for sample_id in id_list:
-                    for source_file in source_dir.rglob(f"{sample_id}-*"):
-                        shutil.copy(source_file, target_dir)
+                self._copy_files(id_list, source_dir, target_dir, overwrite=overwrite)
 
         source_mask_dir = self.source_dir / "mask"
         target_mask_dir = self.target_dir / f"{fold_index}" / split_name / "mask"
         target_mask_dir.mkdir(parents=True, exist_ok=True)
-        for sample_id in id_list:
-            for source_file in source_mask_dir.rglob(f"{sample_id}-*"):
-                shutil.copy(source_file, target_mask_dir)
+        self._copy_files(id_list, source_mask_dir, target_mask_dir, overwrite=overwrite)
 
-    def materialize_fold(self, clean_target_dir=False) -> Dict[str, List[str]]:
+    def _copy_files(self, id_list: Sequence[str], source_dir: Path, target_dir: Path, overwrite: bool = False) -> None:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for sample_id in id_list:
+            for source_file in source_dir.rglob(f"{sample_id}-*"):
+                if not overwrite and (target_dir / source_file.name).exists():
+                    raise FileExistsError(f"Target file {target_dir / source_file.name} already exists.")
+                shutil.copy(source_file, target_dir)
+
+    def materialize_fold(self, overwrite=False, clean_target_dir=False) -> Dict[str, List[str]]:
         """Overwrite target path with the selected fold's train/val/test files.
 
         Args:
-            fold_index: Zero-based fold index in ``[0, num_folds)``.
-
+            overwrite: If True, overwrite existing files in the target directory. If False, raise an error if target files already exist.
+            clean_target_dir: If True, delete all existing fold directories before materializing the new fold.
         Returns:
-            Dictionary with ``train``, ``val``, and ``test`` sample IDs.
+            None.
         """
         if clean_target_dir:
             self.clean_target_path()
 
         for fold_index in range(self.num_folds):
-            self._copy_files(self._train_folds[fold_index], fold_index, "train")
-            self._copy_files(self._val_folds[fold_index], fold_index, "val")
-            self._copy_files(self._test_folds[fold_index], fold_index, "test")
+            self._copy_dataset(self._train_folds[fold_index], fold_index, "train", overwrite=overwrite)
+            self._copy_dataset(self._val_folds[fold_index], fold_index, "val", overwrite=overwrite)
+            self._copy_dataset(self._test_folds[fold_index], fold_index, "test", overwrite=overwrite)
 
     def validate_splits(self) -> None:
         """Validate that the generated splits are mutually exclusive and complete."""
