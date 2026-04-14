@@ -19,13 +19,11 @@ def load_config(file):
     Returns:
         Parsed configuration dictionary.
     """
-    if file is None:
-        file = "configs.json"
-    with open(Path(__file__).parent.parent.parent / "configs" / file, "r") as f:
+    with open(file, "r") as f:
         return json.load(f)
 
 
-def get_config(new_config=None, file=None):
+def get_config(file, new_config=None):
     """Load config data and optionally override nested values.
 
     Args:
