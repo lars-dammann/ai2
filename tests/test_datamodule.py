@@ -19,7 +19,6 @@ from datamodule.datamodule import (
 def minimal_config():
     """Minimal configuration for dataset testing"""
     return {
-        "datadir": "data",
         "datasize": 64,
         "batch_size": 2,
         "normalization": {
@@ -304,24 +303,27 @@ class TestPredictCorrosionDataset:
 class TestCorrosionDataModule:
     """Test suite for CorrosionDataModule (Lightning DataModule)"""
 
-    def test_datamodule_initialization(self, minimal_config):
+    def test_datamodule_initialization(self, sample_data_dir, minimal_config):
         """Test CorrosionDataModule initialization"""
-        dm = CorrosionDataModule(minimal_config)
+        data_dir = str(sample_data_dir)
+        dm = CorrosionDataModule(data_dir, minimal_config)
 
         assert isinstance(dm, pl.LightningDataModule)
         assert dm.batch_size == minimal_config["batch_size"]
         assert dm.data_size == minimal_config["datasize"]
 
-    def test_datamodule_num_workers_default(self, minimal_config, monkeypatch):
+    def test_datamodule_num_workers_default(self, sample_data_dir, minimal_config, monkeypatch):
         """Test that num_workers defaults to 2 when SLURM env var missing"""
         monkeypatch.delenv("SLURM_CPUS_PER_TASK", raising=False)
-        dm = CorrosionDataModule(minimal_config)
+        data_dir = str(sample_data_dir)
+        dm = CorrosionDataModule(data_dir, minimal_config)
         assert dm.num_workers == 2
 
-    def test_datamodule_num_workers_from_slurm(self, minimal_config, monkeypatch):
+    def test_datamodule_num_workers_from_slurm(self, sample_data_dir, minimal_config, monkeypatch):
         """Test that num_workers is set from SLURM_CPUS_PER_TASK"""
         monkeypatch.setenv("SLURM_CPUS_PER_TASK", "8")
-        dm = CorrosionDataModule(minimal_config)
+        data_dir = str(sample_data_dir)
+        dm = CorrosionDataModule(data_dir, minimal_config)
         assert dm.num_workers == 8
 
     def test_datamodule_random_rot90(self):
@@ -352,9 +354,9 @@ class TestCorrosionDataModule:
     def test_datamodule_setup_fit_stage(self, sample_data_dir, minimal_config):
         """Test datamodule setup for fit stage"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.setup(stage="fit")
 
         assert hasattr(dm, "train_data")
@@ -363,9 +365,9 @@ class TestCorrosionDataModule:
     def test_datamodule_setup_test_stage(self, sample_data_dir, minimal_config):
         """Test datamodule setup for test stage"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.setup(stage="test")
 
         assert hasattr(dm, "test_data")
@@ -373,9 +375,9 @@ class TestCorrosionDataModule:
     def test_datamodule_setup_predict_stage(self, sample_data_dir, minimal_config):
         """Test datamodule setup for predict stage"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
 
-        dm = CorrosionDataModule(config, predict_dataset="test")
+        dm = CorrosionDataModule(data_dir,config, predict_dataset="test")
         dm.setup(stage="predict")
 
         assert hasattr(dm, "predict_data")
@@ -383,10 +385,10 @@ class TestCorrosionDataModule:
     def test_datamodule_train_dataloader(self, sample_data_dir, minimal_config):
         """Test train_dataloader returns DataLoader"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
         config["batch_size"] = 1
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.setup(stage="fit")
 
         train_loader = dm.train_dataloader()
@@ -397,10 +399,10 @@ class TestCorrosionDataModule:
     def test_datamodule_val_dataloader(self, sample_data_dir, minimal_config):
         """Test val_dataloader returns DataLoader"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
         config["batch_size"] = 1
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.setup(stage="fit")
 
         val_loader = dm.val_dataloader()
@@ -410,10 +412,10 @@ class TestCorrosionDataModule:
     def test_datamodule_test_dataloader(self, sample_data_dir, minimal_config):
         """Test test_dataloader returns DataLoader"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
         config["batch_size"] = 1
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.setup(stage="test")
 
         test_loader = dm.test_dataloader()
@@ -423,10 +425,10 @@ class TestCorrosionDataModule:
     def test_datamodule_predict_dataloader(self, sample_data_dir, minimal_config):
         """Test predict_dataloader returns DataLoader with custom collate"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
         config["batch_size"] = 1
 
-        dm = CorrosionDataModule(config, predict_dataset="test")
+        dm = CorrosionDataModule(data_dir, config, predict_dataset="test")
         dm.setup(stage="predict")
 
         predict_loader = dm.predict_dataloader()
@@ -438,9 +440,10 @@ class TestCorrosionDataModule:
             == CorrosionDataModule.predict_coallate_function
         )
 
-    def test_datamodule_initialization_saves_hyperparameters(self, minimal_config):
+    def test_datamodule_initialization_saves_hyperparameters(self, sample_data_dir, minimal_config):
         """Test that datamodule saves hyperparameters (Lightning feature)"""
-        dm = CorrosionDataModule(minimal_config)
+        data_dir = str(sample_data_dir)
+        dm = CorrosionDataModule(data_dir, minimal_config)
         # Lightning datamodule should have hparams
         assert hasattr(dm, "hparams") or hasattr(dm, "datamodule_config")
 
@@ -451,10 +454,10 @@ class TestDataModuleIntegration:
     def test_full_training_loop_simulation(self, sample_data_dir, minimal_config):
         """Test simulated training loop with datamodule"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
         config["batch_size"] = 2
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
         dm.num_workers = 0
         dm.setup(stage="fit")
 
@@ -473,9 +476,9 @@ class TestDataModuleIntegration:
     def test_multiple_stages_setup(self, sample_data_dir, minimal_config):
         """Test setting up multiple stages sequentially"""
         config = minimal_config.copy()
-        config["datadir"] = str(sample_data_dir)
+        data_dir = str(sample_data_dir)
 
-        dm = CorrosionDataModule(config)
+        dm = CorrosionDataModule(data_dir, config)
 
         # Setup multiple stages
         dm.setup(stage="fit")

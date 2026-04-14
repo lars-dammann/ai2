@@ -223,11 +223,11 @@ class CorrosionDataModule(pl.LightningDataModule):
         predict_dataset: Split name used during prediction.
     """
 
-    def __init__(self, datamodule_config, reconstruction_overlap=0, predict_dataset="test"):
+    def __init__(self, data_dir, datamodule_config, reconstruction_overlap=0, predict_dataset="test"):
         super().__init__()
         self.save_hyperparameters(ignore=["reconstruction_overlap", "predict_dataset"])
         self.config = datamodule_config
-        self.data_dir = Path(datamodule_config["datadir"])
+        self.data_dir = Path(data_dir)
         self.predict_dataset = predict_dataset
         self.data_size = datamodule_config["datasize"]
         self.reconstruction_overlap = reconstruction_overlap
