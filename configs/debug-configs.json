@@ -1,6 +1,5 @@
 {
     "datamodule": {
-        "datadir": "/home/cld9301/WORK/repos/ai2/data",
         "batch_size": 2,
         "datasize": 128,
         "normalization": {
