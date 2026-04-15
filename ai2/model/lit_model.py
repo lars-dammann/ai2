@@ -370,3 +370,13 @@ class CorrosionUNet(pl.LightningModule):
         return torch.optim.AdamW(
             self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
+
+    @staticmethod
+    def weights_init(model):
+        if isinstance(model, nn.Conv2d):
+            nn.init.kaiming_normal_(model.weight, mode='fan_out', nonlinearity='relu')
+            if model.bias is not None:
+                nn.init.constant_(model.bias, 0)
+        elif isinstance(model, nn.BatchNorm2d):
+            nn.init.constant_(model.weight, 1)
+            nn.init.constant_(model.bias, 0)

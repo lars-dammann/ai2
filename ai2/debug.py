@@ -23,24 +23,17 @@ class LogGradNormCallback(Callback):
             on_step=True, on_epoch=False)
 
 
-def weights_init(model):
-    if isinstance(model, nn.Conv2d):
-        nn.init.kaiming_normal_(model.weight, mode='fan_out', nonlinearity='relu')
-        if model.bias is not None:
-            nn.init.constant_(model.bias, 0)
-    elif isinstance(model, nn.BatchNorm2d):
-        nn.init.constant_(model.weight, 1)
-        nn.init.constant_(model.bias, 0)
-
+base_path = Path(__file__).parent.parent
 
 # Load and unite configs
-config_file =  Path(__file__).parent.parent / "configs" / "debug-configs.json"
+config_file = base_path / "configs" / "debug-configs.json"
 config = get_config(config_file)
 
 model = CorrosionUNet(model_config=config["unet"])
-model.apply(weights_init)
+model.apply(model.weights_init)
 
-datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
+data_dir = base_path / "data"
+datamodule = CorrosionDataModule(data_dir=data_dir, datamodule_config=config["datamodule"])
 
 # initialise the wandb logger and name your wandb project
 wandb_logger = WandbLogger(project="ai2", group="Debug", log_model=False, offline=True)

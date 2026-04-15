@@ -28,13 +28,14 @@ class SaveHeightPrediction(Callback):
         for index, sample_id in enumerate(sample_ids):
             np.save(self.save_path / f"{sample_id}.npy", torch.squeeze(profiles[index]))
 
+
 # Load environment variables
-data_dir = Path(os.getenv("AI2_DATA_DIR"))
-prediciton_save_path = Path(os.getenv("AI2_PREDICTION_SAVE_PATH"))
-config_file = Path(os.getenv("AI2_CONFIG_FILE"))
-wandb_account = os.getenv("AI2_WANDB_ACCOUNT")
-wandb_project = os.getenv("AI2_WANDB_PROJECT")
-run_id = os.getenv("AI2_WANDB_RUN_ID")
+data_dir = Path(os.getenv("DATA_DIR"))
+prediciton_save_path = Path(os.getenv("PREDICTION_SAVE_PATH"))
+config_file = Path(os.getenv("CONFIG_FILE"))
+wandb_account = os.getenv("WANDB_ACCOUNT")
+wandb_project = os.getenv("WANDB_PROJECT")
+run_id = os.getenv("WANDB_RUN_ID")
 
 predict_datasets = ["test", "val", "train"]
 version = "best"

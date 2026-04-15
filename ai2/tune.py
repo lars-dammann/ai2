@@ -19,17 +19,7 @@ from utils.get_data import get_config
 
 seed_everything(0, workers=True)
 
-group = "Residual"
-
-
-def weights_init(model):
-    if isinstance(model, nn.Conv2d):
-        nn.init.kaiming_normal_(model.weight, mode='fan_out', nonlinearity='relu')
-        if model.bias is not None:
-            nn.init.constant_(model.bias, 0)
-    elif isinstance(model, nn.BatchNorm2d):
-        nn.init.constant_(model.weight, 1)
-        nn.init.constant_(model.bias, 0)
+group = os.getenv("WANDB_GROUP")
 
 
 def objective(trial):
@@ -41,21 +31,21 @@ def objective(trial):
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
 
     # Load and unite configs
-    config_file = Path(os.getenv("AI2_CONFIG_FILE"))
+    config_file = Path(os.getenv("CONFIG_FILE"))
     config = get_config(config_file, trial.params)
 
     model = CorrosionUNet(model_config=config["unet"])
-    model.apply(weights_init)
+    model.apply(model.weights_init)
 
     datamodule = CorrosionDataModule(datamodule_config=config["datamodule"])
 
     # initialise the wandb logger and name your wandb project
-    wandb_logger = WandbLogger(project="ai2", group=group,
+    wandb_logger = WandbLogger(project=os.getenv("WANDB_PROJECT"), group=group,
                                name=f"{group} Trial {trial.number}", log_model=True)
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
-    checkpoint_dir = Path(os.getenv("AI2_CHECKPOINT_DIR")) / group / trial.number
+    checkpoint_dir = Path(os.getenv("CHECKPOINT_DIR")) / group / trial.number
     checkpoint_callback = ModelCheckpoint(
         monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
         every_n_epochs=1, filename=f'{group}-trial={trial.number}' + '-{epoch}-{val-loss:.2f}')
