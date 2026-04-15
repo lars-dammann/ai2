@@ -192,6 +192,7 @@ rawdata/
 data/
 transfer/
 results/predictions
+crossval-data/
 
 # Logs and logger
 wandb/
