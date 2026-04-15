@@ -37,13 +37,11 @@ class CrossValidationDataSplitter:
         source_dir: Path,
         inhibitor_list_file: Path,
         target_dir: Path,
-        num_folds: int = 10,
+        num_folds: int = None,
         random_seed: int = 0,
         val_size: int = 25,
         test_size: int = 25,
     ) -> None:
-        if num_folds < 2:
-            raise ValueError("num_folds must be at least 2")
 
         self.source_dir = Path(source_dir)
         self.inhibitor_list_file = Path(inhibitor_list_file)
@@ -53,7 +51,8 @@ class CrossValidationDataSplitter:
         self.val_size = val_size
         self.test_size = test_size
 
-        self._all_sample_group_ids = self._get_sample_group_ids_from_path(self.source_dir / self.MASK_PATH)
+        self._all_sample_group_ids = self._get_sample_group_ids_from_path(
+            self.source_dir / self.MASK_PATH)
         self._nacl_sample_group_ids = self._extract_nacl_sample_ids()
         self._train_folds, self._val_folds, self._test_folds = self._generate_fold_splits()
 
@@ -64,7 +63,8 @@ class CrossValidationDataSplitter:
         Returns:
             Sorted sample group IDs discovered in the source data directory.
         """
-        return sorted({cls._extract_sample_group_id(name) for name in cls._get_sample_ids_from_path(dir)})
+        return sorted({cls._extract_sample_group_id(name)
+                       for name in cls._get_sample_ids_from_path(dir)})
 
     @classmethod
     def _get_sample_ids_from_path(cls, dir: Path) -> List[str]:
@@ -107,12 +107,11 @@ class CrossValidationDataSplitter:
         }
         return sorted(nacl_ids.intersection(self._all_sample_group_ids))
 
-    def _split_into_folds(self, sample_ids: Sequence[str], num_folds: int) -> List[List[str]]:
+    def _split_into_folds(self, sample_ids: Sequence[str]) -> List[List[str]]:
         """Split sample IDs into k folds.
 
         Args:
             sample_ids: Ordered list of sample IDs to distribute over folds.
-            num_folds: Number of folds.
 
         Returns:
             List of folds, each containing sample IDs.
@@ -121,7 +120,11 @@ class CrossValidationDataSplitter:
         val_folds = []
         test_folds = []
 
-        for fold in range(num_folds):
+        # If no number of folds is specified, set it to the maximum possible given the val size
+        if self.num_folds is None:
+            self.num_folds = len(sample_ids) // self.val_size
+
+        for fold in range(self.num_folds):
             train_sample_ids, val_sample_ids, test_sample_ids = self._extract_fold_sample_ids(
                 fold, sample_ids)
             train_folds.append(sorted(train_sample_ids))
@@ -149,9 +152,10 @@ class CrossValidationDataSplitter:
 
         # Extract the val/test sample ids for this fold and remove them from the training sample ids
         val_test_samples_ids = train_sample_ids[val_test_start:val_test_end]
-        if val_test_end > len(sample_ids):
+        if (val_test_start + self.val_size) > len(sample_ids):
             raise IndexError(
-                f"Not enough samples to satisfy val/test split for fold {fold_index + 1} with {self.val_size + self.test_size} validation/test samples.")
+                f"Not enough samples ({len(sample_ids)}) to satisfy val split for fold "
+                f"{fold_index + 1} with {self.val_size} validation samples (would require {(fold_index + 1) * self.val_size}).")
         val_sample_ids = val_test_samples_ids[:self.val_size]
         test_sample_ids = val_test_samples_ids[self.val_size:]
 
@@ -185,7 +189,7 @@ class CrossValidationDataSplitter:
             self._all_sample_group_ids, self._nacl_sample_group_ids)
         random.Random(self.random_seed).shuffle(filtered_ids)
 
-        train_folds, val_folds, test_folds = self._split_into_folds(filtered_ids, self.num_folds)
+        train_folds, val_folds, test_folds = self._split_into_folds(filtered_ids)
 
         # Add the filtered samples back to the training folds
         train_folds = [
@@ -205,7 +209,9 @@ class CrossValidationDataSplitter:
             if split_dir.exists():
                 shutil.rmtree(split_dir)
 
-    def _copy_dataset(self, id_list: Sequence[str], fold_index: int, split_name: str, overwrite: bool = False) -> None:
+    def _copy_dataset(
+            self, id_list: Sequence[str],
+            fold_index: int, split_name: str, overwrite: bool = False) -> None:
         """Copy all files matching sample IDs into one split directory.
 
         Args:
@@ -228,12 +234,15 @@ class CrossValidationDataSplitter:
         target_mask_dir.mkdir(parents=True, exist_ok=True)
         self._copy_files(id_list, source_mask_dir, target_mask_dir, overwrite=overwrite)
 
-    def _copy_files(self, id_list: Sequence[str], source_dir: Path, target_dir: Path, overwrite: bool = False) -> None:
+    def _copy_files(
+            self, id_list: Sequence[str],
+            source_dir: Path, target_dir: Path, overwrite: bool = False) -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
         for sample_id in id_list:
             for source_file in source_dir.rglob(f"{sample_id}-*"):
                 if not overwrite and (target_dir / source_file.name).exists():
-                    raise FileExistsError(f"Target file {target_dir / source_file.name} already exists.")
+                    raise FileExistsError(
+                        f"Target file {target_dir / source_file.name} already exists.")
                 shutil.copy(source_file, target_dir)
 
     def materialize_fold(self, overwrite=False, clean_target_dir=False) -> Dict[str, List[str]]:
@@ -249,9 +258,13 @@ class CrossValidationDataSplitter:
             self.clean_target_path()
 
         for fold_index in range(self.num_folds):
-            self._copy_dataset(self._train_folds[fold_index], fold_index, "train", overwrite=overwrite)
+            self._copy_dataset(
+                self._train_folds[fold_index],
+                fold_index, "train", overwrite=overwrite)
             self._copy_dataset(self._val_folds[fold_index], fold_index, "val", overwrite=overwrite)
-            self._copy_dataset(self._test_folds[fold_index], fold_index, "test", overwrite=overwrite)
+            self._copy_dataset(
+                self._test_folds[fold_index],
+                fold_index, "test", overwrite=overwrite)
 
     def validate_splits(self) -> None:
         """Validate that the generated splits are mutually exclusive and complete."""
@@ -278,10 +291,12 @@ class CrossValidationDataSplitter:
                 for data_type in [self.IMAGE_PATH, self.HEIGHT_PATH]:
                     dir = split_dir / time_name / data_type
                     if not dir.exists():
-                        raise ValueError(f"Expected directory {dir} does not exist for split consistency check.")
+                        raise ValueError(
+                            f"Expected directory {dir} does not exist for split consistency check.")
 
                     if not compare_ids == set(self._get_sample_ids_from_path(dir)):
-                        raise ValueError(f"Data type consistency check failed for {split_dir} between mask and {time_name}/{data_type}")
+                        raise ValueError(
+                            f"Data type consistency check failed for {split_dir} between mask and {time_name}/{data_type}")
 
     def _validate_exclusivity(self, fold_dir: Path) -> None:
         """Validate that train/val/test splits are mutually exclusive."""
@@ -305,17 +320,20 @@ class CrossValidationDataSplitter:
         complete_sample_ids = set(self._get_sample_ids_from_path(self.source_dir / self.MASK_PATH))
         all_split_ids = train_ids.union(val_ids).union(test_ids)
         if all_split_ids != complete_sample_ids:
-            raise ValueError(f"Train/val/test splits in {fold_dir} do not together contain all sample IDs")
+            raise ValueError(
+                f"Train/val/test splits in {fold_dir} do not together contain all sample IDs")
+
 
 if __name__ == "__main__":
     base_path = Path(os.path.dirname(__file__)).parent.parent / "crossval-data"
     target_path = base_path / "splits"
     source_path = base_path / "complete"
-    inhibitor_list_file = source_path / "volume-loss.csv"
+    inhibitor_list_file = source_path / "inhibitor-list.csv"
 
     splitter = CrossValidationDataSplitter(
-        target_dir=target_path, source_dir=source_path, inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10,
-        num_folds=16, random_seed=0)
-    splitter.materialize_fold(clean_target_dir=True)
-    splitter.validate_splits()
-    print(f"Generated {splitter.num_folds} folds with NaCl samples: {len(splitter._nacl_sample_group_ids)}")
+        target_dir=target_path, source_dir=source_path, inhibitor_list_file=inhibitor_list_file,
+        val_size=10, test_size=10, random_seed=0)
+    # splitter.materialize_fold(clean_target_dir=True)
+    # splitter.validate_splits()
+    print(f"Generated {splitter.num_folds} folds with NaCl samples: "
+          f"{len(splitter._nacl_sample_group_ids)}")
