@@ -24,13 +24,18 @@ config = get_config(config_file)
 
 splitter = CrossValidationDataSplitter(
     target_dir=split_data_dir, source_dir=complete_data_dir,
-    inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10, random_seed=0)
+    inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10, random_seed=1)
 splitter.materialize_fold(clean_target_dir=True)
 splitter.validate_splits()
 
 for fold_index in range(splitter.num_folds):
     name = f"Fold-{fold_index}"
     data_dir = split_data_dir / f"{fold_index}"
+
+    # Calculate the normaliztion values from the training data and add them to the config
+    normalization_values = Normalizer.calculate_normalization_stats(data_dir)
+    updated_config = config.copy()
+    updated_config["datamodule"]["normalization"] = normalization_values
 
     # Checkpoint callback
     checkpoint_dir = Path(os.getenv("CHECKPOINT_DIR")) / group
@@ -41,26 +46,26 @@ for fold_index in range(splitter.num_folds):
     # initialise the wandb logger and name your wandb project
     wandb_logger = WandbLogger(
         project=os.getenv("WANDB_PROJECT"),
-        group=group, name=name, log_model=True)
-    wandb_logger.experiment.config.update(config)
+        group=group, name=name, log_model=True, config=updated_config)
 
     trainer = Trainer(
         devices="auto",
         accelerator="auto",
-        gradient_clip_val=1.0,
+        gradient_clip_val=updated_config["trainer"]["gradient_clip_val"],
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
-        max_epochs=800,
+        max_epochs=updated_config["trainer"]["max_epochs"],
         num_nodes=nnodes,
         log_every_n_steps=20,
-        precision='bf16-mixed',
-        accumulate_grad_batches=3
+        precision=updated_config["trainer"]["precision"],
+        accumulate_grad_batches=updated_config["trainer"]["accumulate_grad_batches"]
     )
 
-    model = CorrosionUNet(model_config=config["unet"])
+    model = CorrosionUNet(model_config=updated_config["unet"])
     model.apply(model.weights_init)
 
-    datamodule = CorrosionDataModule(data_dir=data_dir, datamodule_config=config["datamodule"])
+    datamodule = CorrosionDataModule(
+        data_dir=data_dir, datamodule_config=updated_config["datamodule"])
 
     trainer.fit(model, datamodule=datamodule)
     wandb.finish()
