@@ -2,6 +2,12 @@
     "datamodule": {
         "batch_size": 10,
         "datasize": 1024,
+        "color_jitter": {
+            "brightness": 0.15,
+            "contrast": 0.15,
+            "saturation": 0.05,
+            "hue": 0.01
+        },
         "normalization": {
             "before": {
                 "image": {

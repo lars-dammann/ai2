@@ -235,7 +235,12 @@ class CorrosionDataModule(pl.LightningDataModule):
              v2.Lambda(CorrosionDataModule.random_rot90),
              v2.RandomHorizontalFlip(),
              v2.RandomVerticalFlip()])
-        self.photometric_transform = v2.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.05, hue=0.01)
+        color_jitter_config = datamodule_config["color_jitter"]
+        self.photometric_transform = v2.ColorJitter(
+            brightness=color_jitter_config["brightness"],
+            contrast=color_jitter_config["contrast"],
+            saturation=color_jitter_config["saturation"],
+            hue=color_jitter_config["hue"])
         self.val_transform = v2.Compose(
             [v2.RandomCrop(self.data_size, pad_if_needed=True)])
 
