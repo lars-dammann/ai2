@@ -1,4 +1,4 @@
-from utils.nomalizer import Normalizer
+from utils.normalizer import Normalizer
 from model.unet import UNet
 
 import lightning as pl

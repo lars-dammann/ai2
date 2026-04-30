@@ -2,6 +2,7 @@ from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
 from utils.get_data import get_config
 from utils.data_splitter import CrossValidationDataSplitter
+from utils.normalizer import Normalizer
 
 import os
 from pathlib import Path

@@ -1,4 +1,4 @@
-from utils.nomalizer import Normalizer
+from utils.normalizer import Normalizer
 from utils.get_data import get_mask, get_image, get_height
 
 import os
@@ -134,10 +134,8 @@ class PredictCorrosionDataset(CorrosionDataset):
         """
         sample_id = self.sample_ids[idx]
 
-        data = torch.cat(
-            (get_image(self.before_image_dir, sample_id), get_height(self.before_height_dir, sample_id)),
-            dim=0,
-        )
+        data = torch.cat((get_image(self.before_image_dir, sample_id),
+                          get_height(self.before_height_dir, sample_id)), dim=0, )
         imageshape = data.shape[-2:]
 
         mask = get_mask(self.mask_dir, sample_id)
