@@ -221,9 +221,9 @@ class CorrosionDataModule(pl.LightningDataModule):
         predict_dataset: Split name used during prediction.
     """
 
-    def __init__(self, data_dir, datamodule_config, reconstruction_overlap=0, predict_dataset="test"):
+    def __init__(self, data_dir, datamodule_config, reconstruction_overlap=0,
+                 predict_dataset="test"):
         super().__init__()
-        self.save_hyperparameters(ignore=["reconstruction_overlap", "predict_dataset"])
         self.config = datamodule_config
         self.data_dir = Path(data_dir)
         self.predict_dataset = predict_dataset
@@ -255,7 +255,7 @@ class CorrosionDataModule(pl.LightningDataModule):
             Rotated tensor with the same shape as input.
         """
         k = torch.randint(0, 4, (1,)).item()
-        return torch.rot90(img, k, dims=[1,2])
+        return torch.rot90(img, k, dims=[1, 2])
 
     @staticmethod
     def predict_coallate_function(batch):
@@ -281,7 +281,8 @@ class CorrosionDataModule(pl.LightningDataModule):
         """
         if stage == "fit":
             self.train_data = CorrosionDataset(
-                self.data_dir / "train", self.config, transform=self.train_transform, photometric_transform=self.photometric_transform)
+                self.data_dir / "train", self.config, transform=self.train_transform,
+                photometric_transform=self.photometric_transform)
             self.val_data = CorrosionDataset(
                 self.data_dir / "val", self.config, transform=self.val_transform)
         if stage == "test":

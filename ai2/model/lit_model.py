@@ -17,7 +17,6 @@ class CorrosionUNet(pl.LightningModule):
 
     def __init__(self, model_config, reconstruction_overlap=0):
         super().__init__()
-        self.save_hyperparameters(ignore=["reconstruction_overlap"])
         self.model = UNet(model_config, in_channels=4, out_channels=1)
         self.learning_rate = model_config["lr"]
         self.weight_decay = model_config["weight_decay"]
