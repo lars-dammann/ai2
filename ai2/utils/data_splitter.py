@@ -331,9 +331,9 @@ if __name__ == "__main__":
     inhibitor_list_file = source_path / "inhibitor-list.csv"
 
     splitter = CrossValidationDataSplitter(
-        target_dir=target_path, source_dir=source_path, inhibitor_list_file=inhibitor_list_file,
-        val_size=10, test_size=10, random_seed=0)
-    # splitter.materialize_fold(clean_target_dir=True)
-    # splitter.validate_splits()
+        target_dir=target_path, source_dir=source_path,
+        inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10, random_seed=1)
+    splitter.materialize_fold(clean_target_dir=True)
+    splitter.validate_splits()
     print(f"Generated {splitter.num_folds} folds with NaCl samples: "
           f"{len(splitter._nacl_sample_group_ids)}")
