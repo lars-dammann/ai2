@@ -94,17 +94,15 @@ class CorrosionDataset(Dataset):
         """
         normalization_dict = self.config["normalization"]
         mean = np.concatenate(
-            (normalization_dict["before"]["image"]["mean"],
-             normalization_dict["before"]["height"]["mean"],
-             normalization_dict["after"]["height"]["mean"]),
-            axis=0).astype(
-            np.float32)
+            (np.array(normalization_dict["before"]["image"]["mean"], dtype=np.float32).reshape(3),
+             np.array(normalization_dict["before"]["height"]["mean"], dtype=np.float32).reshape(1),
+             np.array(normalization_dict["after"]["height"]["mean"], dtype=np.float32).reshape(1)),
+            axis=0)
         std = np.concatenate(
-            (normalization_dict["before"]["image"]["std"],
-             normalization_dict["before"]["height"]["std"],
-             normalization_dict["after"]["height"]["std"]),
-            axis=0).astype(
-            np.float32)
+            (np.array(normalization_dict["before"]["image"]["std"], dtype=np.float32).reshape(3),
+             np.array(normalization_dict["before"]["height"]["std"], dtype=np.float32).reshape(1),
+             np.array(normalization_dict["after"]["height"]["std"], dtype=np.float32).reshape(1)),
+            axis=0)
         return Normalizer(mean, std)
 
 
@@ -161,7 +159,13 @@ class PredictCorrosionDataset(CorrosionDataset):
         sample_info[sample_id]["positions"] = patch_positions
         sample_info[sample_id]["total_number_patches"] = (n_height + 1) * (n_width + 1)
         sample_info[sample_id]["imageshape"] = imageshape
-        sample_info["normalization"] = self.config["normalization"]["after"]["height"]
+        sample_info["normalization"] = {
+            "mean": np.array(
+                self.config["normalization"]["after"]["height"]["mean"],
+                dtype=np.float32).reshape(1),
+            "std": np.array(
+                self.config["normalization"]["after"]["height"]["std"],
+                dtype=np.float32).reshape(1)}
 
         return torch.flatten(patch_tensor, start_dim=0, end_dim=1), sample_info
 
@@ -200,15 +204,13 @@ class PredictCorrosionDataset(CorrosionDataset):
         """
         normalization_dict = self.config["normalization"]
         mean = np.concatenate(
-            (normalization_dict["before"]["image"]["mean"],
-             normalization_dict["before"]["height"]["mean"]),
-            axis=0).astype(
-            np.float32)
+            (np.array(normalization_dict["before"]["image"]["mean"], dtype=np.float32).reshape(3),
+             np.array(normalization_dict["before"]["height"]["mean"], dtype=np.float32).reshape(1)),
+            axis=0)
         std = np.concatenate(
-            (normalization_dict["before"]["image"]["std"],
-             normalization_dict["before"]["height"]["std"]),
-            axis=0).astype(
-            np.float32)
+            (np.array(normalization_dict["before"]["image"]["std"], dtype=np.float32).reshape(3),
+             np.array(normalization_dict["before"]["height"]["std"], dtype=np.float32).reshape(1)),
+            axis=0)
         return Normalizer(mean, std)
 
 
