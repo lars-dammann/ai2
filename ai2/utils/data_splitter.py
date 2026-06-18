@@ -37,7 +37,6 @@ class CrossValidationDataSplitter:
         source_dir: Path,
         inhibitor_list_file: Path,
         target_dir: Path,
-        num_folds: int = None,
         random_seed: int = 0,
         val_size: int = 25,
         test_size: int = 25,
@@ -46,7 +45,7 @@ class CrossValidationDataSplitter:
         self.source_dir = Path(source_dir)
         self.inhibitor_list_file = Path(inhibitor_list_file)
         self.target_dir = Path(target_dir)
-        self.num_folds = num_folds
+        self.num_folds = None
         self.random_seed = random_seed
         self.val_size = val_size
         self.test_size = test_size
@@ -55,6 +54,7 @@ class CrossValidationDataSplitter:
             self.source_dir / self.MASK_PATH)
         self._nacl_sample_group_ids = self._extract_nacl_sample_ids()
         self._train_folds, self._val_folds, self._test_folds = self._generate_fold_splits()
+        self.num_folds = len(self._test_folds)
 
     @classmethod
     def _get_sample_group_ids_from_path(cls, dir: Path) -> List[str]:
@@ -121,24 +121,31 @@ class CrossValidationDataSplitter:
         test_folds = []
 
         # If no number of folds is specified, set it to the maximum possible given the val size
-        if self.num_folds is None:
-            self.num_folds = len(sample_ids) // self.val_size
+        num_folds = len(sample_ids) // self.val_size
 
-        for fold in range(self.num_folds):
+        for fold in range(num_folds):
             train_sample_ids, val_sample_ids, test_sample_ids = self._extract_fold_sample_ids(
-                fold, sample_ids)
+                fold, sample_ids, reverse=False)
             train_folds.append(sorted(train_sample_ids))
             val_folds.append(sorted(val_sample_ids))
             test_folds.append(sorted(test_sample_ids))
 
+        # Include the last missing test set
+        train_sample_ids, val_sample_ids, test_sample_ids = self._extract_fold_sample_ids(
+                0, sample_ids, reverse=True)
+        train_folds.append(sorted(train_sample_ids))
+        val_folds.append(sorted(val_sample_ids))
+        test_folds.append(sorted(test_sample_ids))
+
         return train_folds, val_folds, test_folds
 
-    def _extract_fold_sample_ids(self, fold_index: int, sample_ids: Sequence[str]) -> List[str]:
+    def _extract_fold_sample_ids(self, fold_index: int, sample_ids: Sequence[str], reverse: bool = False) -> List[str]:
         """Extract sample IDs for a specific fold.
 
         Args:
             fold_index: Zero-based fold index.
             sample_ids: List of sample IDs to distribute.
+            reverse: Whether to reverse the order of validation and test samples.
 
         Returns:
             List of sample IDs for the specified fold.
@@ -156,8 +163,12 @@ class CrossValidationDataSplitter:
             raise IndexError(
                 f"Not enough samples ({len(sample_ids)}) to satisfy val split for fold "
                 f"{fold_index + 1} with {self.val_size} validation samples (would require {(fold_index + 1) * self.val_size}).")
-        val_sample_ids = val_test_samples_ids[:self.val_size]
-        test_sample_ids = val_test_samples_ids[self.val_size:]
+        if reverse:
+            val_sample_ids = val_test_samples_ids[self.test_size:]
+            test_sample_ids = val_test_samples_ids[:self.test_size]
+        else:
+            val_sample_ids = val_test_samples_ids[:self.val_size]
+            test_sample_ids = val_test_samples_ids[self.val_size:]
 
         # Delete the val/test sample ids from the training sample ids
         del train_sample_ids[val_test_start:val_test_end]
@@ -326,14 +337,14 @@ class CrossValidationDataSplitter:
 
 if __name__ == "__main__":
     base_path = Path(os.path.dirname(__file__)).parent.parent / "crossval-data"
-    target_path = base_path / "splits"
+    target_path = base_path / "split"
     source_path = base_path / "complete"
     inhibitor_list_file = source_path / "inhibitor-list.csv"
 
     splitter = CrossValidationDataSplitter(
         target_dir=target_path, source_dir=source_path,
         inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10, random_seed=1)
-    splitter.materialize_fold(clean_target_dir=True)
+    # splitter.materialize_fold(clean_target_dir=True)
     splitter.validate_splits()
     print(f"Generated {splitter.num_folds} folds with NaCl samples: "
           f"{len(splitter._nacl_sample_group_ids)}")
