@@ -109,12 +109,14 @@ The samples are circular and need to be isolated from the background for accurat
    - Threshold the backprojected images
    - Apply morphological operations (open/close) to clean the mask
 5. Center detection:
-   - Rotate the binary mask around candidate center points
-   - Correlate with the original mask
+   - Reflect and mirror the binary mask around candidate center points
+   - Mutliply with the original mask and calculate mean
    - The point with highest correlation is the sample center
 6. Radius estimation:
-   - For each angle around the detected center, find where the mask transitions from background to sample
-   - Average across all angles to estimate the radius
+   - Invert the binary mask
+   - Stepwise rotate the spherical binary mask around the center and multiply with itself
+   - Multiply all rotated masks
+   - The inner radius free of values determines the sample radius
 7. Manual verification:
    - Detected circles are saved as images for visual inspection
    - Incorrectly detected circles are corrected manually
@@ -153,8 +155,7 @@ Before and after images must be precisely aligned to compute accurate pixel-wise
      - Two corner regions (top-left and bottom-right quadrants, excluding center)
      - One central region (center quadrant)
    - Template match each subpatch individually
-   - Calculate precision as the mean radial distance of subpatch matches from the coarse match
-   - Calculate consistency as the number of subpatches agreeing within a distance limit
+   - Calculate the image offset from the average determined offsets from each patch
 
 3. **Manual intervention for low-consistency matches**:
    - If automatic matching fails, manual intervention is required
@@ -181,7 +182,6 @@ Binary masks are created to identify valid regions for analysis:
 1. Identify invalid pixels in images (all channels = 0, typically black background)
 2. Identify invalid pixels in height profiles (NaN values, corrupted data)
 3. Combine masks across both images and both height profiles
-4. Apply morphological operations to clean the masks
 
 **Special cases documented**:
 - Sample `3-8-3-3`: Height profile contains regions with NaN values; these are properly masked
@@ -228,116 +228,6 @@ Binary masks indicate which pixels are valid (sample region) vs. invalid (backgr
 - `rawdata/processed/after/height/{id}.npy` (masked)
 - `rawdata/processed/mask/{id}.npy` (binary mask)
 
-### Step 8: Data Splitting
-
-**Location**: `notebooks/split-data.ipynb` and `bashscripts/create-datafolder.sh`
-
-The processed data is split into training, validation, and test sets while maintaining data integrity and preventing data leakage.
-
-#### Splitting Strategy
-
-**Objective**: Test the model's ability to generalize to unseen corrosion inhibitors while ensuring proper train/val/test separation.
-
-**Procedure**:
-1. Load all sample IDs and their corresponding inhibitor types from `volume-loss.csv`
-2. Separate NaCl samples (these are put into training set)
-3. From remaining samples:
-   - Randomize order (seed=5 for reproducibility)
-   - Allocate 25 samples to validation set
-   - Allocate 25 samples to test set
-   - Remaining samples go to training set
-4. Add NaCl samples to training set
-5. For each sample ID, copy all 4 associated images (1-4) to the appropriate set
-
-#### Data Leakage Prevention
-
-The splitting logic explicitly checks that:
-- No validation sample appears in training set
-- No validation sample appears in test set
-- No training sample appears in test set
-
-This is critical because each sample ID has 4 associated images, and we must ensure all 4 are in the same split.
-
-#### Final Dataset Composition
-
-- **Training set**: 161 sample IDs = 644 images
-  - 36 NaCl samples
-  - 125 other inhibitor types
-- **Validation set**: 25 sample IDs = 100 images
-- **Test set**: 25 sample IDs = 100 images
-
-**Note on inhibitor consistency**: Due to the image naming confusions (see Step 1), the mapping between samples and inhibitor types may contain errors. Specifically:
-- Sample `3-8-6` is listed as NaCl
-- Sample `3-8-3` was confused with `3-8-6`
-- Therefore, the actual inhibitor type of sample `3-8-3` is uncertain
-
-#### Copy Using Bashscript
-
-**Script**: `bashscripts/create-datafolder.sh`
-
-This script implements the splitting procedure:
-1. Reads all sample IDs from `rawdata/processed/before/centered-image/`
-2. Extracts unique base IDs (e.g., `x-x-x`)
-3. Randomly draws 50 base IDs for validation/test
-4. Remaining base IDs go to training
-5. Splits the 50 into 25 validation and 25 test
-6. Validates no data leakage
-7. Copies centered images and heights to `data/{train,val,test}/{before,after}/{image,height}/`
-
-### Step 9: Mask Distribution
-
-**Script**: `bashscripts/copy-mask.sh`
-
-After data splitting, binary masks must be copied to the corresponding data split folders:
-
-**Procedure**:
-1. For each data split (train, val, test)
-2. For each time point (before, after)
-3. For each image file in the split
-4. Copy the corresponding mask from `rawdata/processed/mask/` to `data/{split}/{time}/mask/`
-
-**Rationale**: Masks are stored separately but referenced during data loading to identify valid pixels for loss computation.
-
-### Step 10: Normalization Calculation
-
-**Location**: `notebooks/calc-normlization-values.ipynb`
-
-To ensure stable training, height profiles are normalized using statistics computed from the training set.
-
-**Process**:
-1. Load all training set height profiles
-2. Compute per-channel statistics:
-   - Mean value
-   - Standard deviation
-3. Save normalization parameters to a file or config
-4. These parameters are used during data loading to normalize all height profiles
-
-**Rationale**: Normalizing to zero mean and unit variance improves neural network training stability and convergence.
-
-## Reproducibility and File Structure
-
-### Key Files for Reproducibility
-
-```
-preprocess/
-├── PREPROCESSING.md                         # This documentation
-├── notebooks/
-│   ├── check-data-quality.ipynb             # Step 1: Quality assessment
-│   ├── circle-fitting.ipynb                 # Step 4: Region detection
-│   ├── match-before-after.ipynb             # Step 5-6: Alignment & centering
-│   ├── create-mask.ipynb                    # Step 7: Masking
-│   ├── split-data.ipynb                     # Step 8: Data splitting
-│   ├── get-volume-loss.ipynb                # Step 3: Metadata processing
-│   └── calc-normlization-values.ipynb       # Step 10: Normalization
-├── bashscripts/
-│   ├── reorder-images.sh                    # Step 2: Reorganization
-│   ├── create-datafolder.sh                 # Step 8: Splitting
-│   └── copy-mask.sh                         # Step 9: Mask distribution
-└── rawdata/
-    ├── results/all-results.xlsx             # Input: Volume loss data
-    └── processed/                           # Intermediate outputs (DO NOT MODIFY)
-```
-
 ### Executing the Pipeline
 
 To reproduce the preprocessing from raw data:
@@ -368,64 +258,6 @@ To reproduce the preprocessing from raw data:
    bash bashscripts/create-datafolder.sh
    bash bashscripts/copy-mask.sh
    ```
-
-### Variables That Can Be Tuned
-
-If you want to modify the preprocessing, the following parameters can be adjusted:
-
-**Data splitting** (`create-datafolder.sh`, `split-data.ipynb`):
-- `valnum = 25`: Number of validation samples
-- `testnum = 25`: Number of test samples
-- `random_seed = 5`: Random seed for reproducible splitting
-
-**Circle fitting** (`circle-fitting.ipynb`):
-- Histogram backprojection thresholds
-- Morphological operation kernel sizes
-- Search ranges for center and radius detection
-
-**Template matching** (`match-before-after.ipynb`):
-- Distance limit for consistency checking
-- Number and positions of subpatches
-- Image masking parameters before alignment
-
-## Known Limitations and Future Improvements
-
-### Current Limitations
-
-1. **Image Alignment**: While template matching works for most samples, slightly warped or deformed samples have imperfect pixel-level alignment
-   - **Impact**: May introduce small errors in volume loss computation for severely corroded samples
-   - **Potential Solution**: Add fiducial markers to samples, maintain precise camera calibration
-
-2. **Height Profile Alignment**: Height profiles may have slight shifts relative to RGB images
-   - **Impact**: Could cause height-image misalignment in rare cases
-   - **Potential Solution**: Ensure measurement hardware synchronizes image and height acquisitions
-
-3. **Semi-Automatic Circle Detection**: Requires manual verification and correction
-   - **Impact**: Time-consuming for large datasets
-   - **Potential Solution**: Train a machine learning model for circle detection
-
-4. **Manual Intervention**: Some samples required manual handling
-   - **Impact**: Potential source of inconsistency if future users make different choices
-   - **Potential Solution**: Document exact manual decisions in code rather than comments
-
-5. **Inhibitor Label Ambiguity**: Image naming confusions make some inhibitor labels uncertain
-   - **Impact**: Model evaluation with respect to inhibitor generalization may be affected
-   - **Potential Solution**: Verify inhibitor labels with experimental documentation
-
-### Recommendations for Future Data Collection
-
-1. **Sample Markers**: Add visible fiducial markers (dots, cross-hairs) to improve alignment
-2. **Consistent Camera Position**: Maintain precise camera distance and angle between before/after measurements
-3. **Data Validation**: Create checksums or hashes to verify data integrity during transfer
-4. **Metadata Logging**: Automatically record measurement parameters (camera settings, calibration, date) with data
-5. **Quality Thresholds**: Define acceptance criteria for image quality before measurement completion
-
-## References
-
-For additional context on the data and corrosion measurement protocol, refer to:
-- Raw data documentation (if available in `rawdata/`)
-- Experimental design documents
-- Profilometer manual and calibration procedures
 
 ## Summary
 
