@@ -150,10 +150,8 @@ Before and after images must be precisely aligned to compute accurate pixel-wise
    - Use majority voting among the 6 methods to determine the most consistent offset
 
 2. **Fine alignment with subpatches**:
-   - If coarse alignment shows low consistency (≤0 agreement), use statistical template matching
-   - Extract 5 subpatches from the centered before image:
-     - Two corner regions (top-left and bottom-right quadrants, excluding center)
-     - One central region (center quadrant)
+   - If coarse alignment shows low consistency (≤0 agreement) the image might be distorted with respect to the befor image. In this case use the alignement that fits best on average.
+   - Extract 4 subpatches from the sample image containing the border and background regions of the image from each corner
    - Template match each subpatch individually
    - Calculate the image offset from the average determined offsets from each patch
 
