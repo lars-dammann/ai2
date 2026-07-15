@@ -69,7 +69,7 @@ for fold_index in range(splitter.num_folds):
         callbacks=[checkpoint_callback],
         max_epochs=updated_config["trainer"]["max_epochs"],
         num_nodes=nnodes,
-        log_every_n_steps=20,
+        log_every_n_steps=updated_config["trainer"]["log_every_n_steps"],
         precision=updated_config["trainer"]["precision"],
         accumulate_grad_batches=updated_config["trainer"]["accumulate_grad_batches"]
     )
