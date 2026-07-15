@@ -11,7 +11,7 @@ The preprocessing is designed to be scientifically reproducible. All steps are d
 The original dataset consists of before and after profilometer measurements of corroded samples:
 - **Visual data**: RGB images from the profilometer scanner
 - **Height data**: 2D height maps from the profilometer measurements
-- **Inhibitor annotations**: Volume loss values and inhibitor types from post-processing analysis
+- **modulator annotations**: Volume loss values and modulator types from post-processing analysis
 
 ## Preprocessing Pipeline
 
@@ -29,7 +29,7 @@ Before processing, the raw data is validated for quality issues and manually cor
      - `before/2-5-10 ↔ after/2-5-11` (actually should be `before/2-5-10 ↔ after/2-5-10` and `before/2-5-11 ↔ after/2-5-11`)
      - `before/3-8-3 ↔ after/3-8-6` (actually should be matched the opposite way)
    - **Resolution**: The after folders were renamed to align with the before folders for data consistency
-   - **Note**: The connection to the actual corrosion inhibitor names remains ambiguous due to these confusions
+   - **Note**: The connection to the actual corrosion modulator names remains ambiguous due to these confusions
 
 2. **Duplicate and Missing Image Data**
    - Identical "before" images found: `before/4-6-11/3.png` = `before/4-6-10/3.png`
@@ -70,15 +70,15 @@ The original data is organized in nested folders by sample ID and measurement ty
 
 **Rationale**: The flat structure simplifies subsequent processing steps and makes file operations more efficient.
 
-### Step 3: Corrosion Inhibitor Metadata Processing
+### Step 3: Corrosion modulator Metadata Processing
 
 **Location**: `notebooks/get-volume-loss.ipynb`
 
-The volume loss and corrosion inhibitor information is extracted from an Excel spreadsheet and converted to a machine-readable CSV format.
+The volume loss and corrosion modulator information is extracted from an Excel spreadsheet and converted to a machine-readable CSV format.
 
 **Processing Steps**:
 1. Read the Excel file (`rawdata/results/all-results.xlsx`)
-2. Extract relevant columns: sample ID, inhibitor name, and volume loss measurements (4 measurements per sample)
+2. Extract relevant columns: sample ID, modulator name, and volume loss measurements (4 measurements per sample)
 3. Clean data:
    - Remove unwanted ID extensions
    - Replace malformed ID markers (`#` → `1`)
@@ -89,9 +89,9 @@ The volume loss and corrosion inhibitor information is extracted from an Excel s
    - New ID format: `x-x-x-{1,2,3,4}` (sample base ID + image number)
 5. Export to `data/volume-loss/volume-loss.csv`
 
-**Output**: A CSV file with columns: `id`, `name` (inhibitor type), `volumeloss`
+**Output**: A CSV file with columns: `id`, `name` (modulator type), `volumeloss`
 
-**Rationale**: The metric-like format enables easy lookup of inhibitor types during training and evaluation.
+**Rationale**: The metric-like format enables easy lookup of modulator types during training and evaluation.
 
 ### Step 4: Sample Region of Interest Detection
 

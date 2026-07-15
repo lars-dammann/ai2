@@ -19,7 +19,7 @@ class CrossValidationDataSplitter:
 
     Args:
         original_path: Root directory containing ``before``, ``after``, and ``mask``.
-        inhibitor_list_file: CSV metadata file with inhibitor names and sample ids.
+        modulator_list_file: CSV metadata file with modulator names and sample ids.
         save_path: Destination directory where train/val/test splits are copied.
         num_folds: Number of validation folds to generate from non-NaCl samples.
         random_seed: Seed used for deterministic fold shuffling.
@@ -35,7 +35,7 @@ class CrossValidationDataSplitter:
     def __init__(
         self,
         source_dir: Path,
-        inhibitor_list_file: Path,
+        modulator_list_file: Path,
         target_dir: Path,
         random_seed: int = 0,
         val_size: int = 25,
@@ -43,7 +43,7 @@ class CrossValidationDataSplitter:
     ) -> None:
 
         self.source_dir = Path(source_dir)
-        self.inhibitor_list_file = Path(inhibitor_list_file)
+        self.modulator_list_file = Path(modulator_list_file)
         self.target_dir = Path(target_dir)
         self.num_folds = None
         self.random_seed = random_seed
@@ -99,8 +99,8 @@ class CrossValidationDataSplitter:
         Returns:
             Sorted list of NaCl group sample IDs found in source files.
         """
-        inhibitors = pd.read_csv(self.inhibitor_list_file)
-        nacl_rows = inhibitors[inhibitors["name"].str.contains("NaCl", case=False)]
+        modulators = pd.read_csv(self.modulator_list_file)
+        nacl_rows = modulators[modulators["name"].str.contains("NaCl", case=False)]
         nacl_ids = {
             self._SAMPLE_BASE_PATTERN.match(sample_id).group("sample_group_id")
             for sample_id in nacl_rows["id"].astype(str)
@@ -339,11 +339,11 @@ if __name__ == "__main__":
     base_path = Path(os.path.dirname(__file__)).parent.parent / "crossval-data"
     target_path = base_path / "split"
     source_path = base_path / "complete"
-    inhibitor_list_file = source_path / "inhibitor-list.csv"
+    modulator_list_file = source_path / "modulator-list.csv"
 
     splitter = CrossValidationDataSplitter(
         target_dir=target_path, source_dir=source_path,
-        inhibitor_list_file=inhibitor_list_file, val_size=10, test_size=10, random_seed=1)
+        modulator_list_file=modulator_list_file, val_size=10, test_size=10, random_seed=1)
     # splitter.materialize_fold(clean_target_dir=True)
     splitter.validate_splits()
     print(f"Generated {splitter.num_folds} folds with NaCl samples: "

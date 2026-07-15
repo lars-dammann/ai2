@@ -36,9 +36,10 @@ mamba activate ai2
 ### Crossvalidation
 To reproduce the 18 trained models from the cross validation study, run `ai2/crossvaldiation.py` with the following environment variables set:
 - COMPLETE_DATA_DIR: Path to the complete dataset (`data`).
-- INHIBITOR_LIST_FILE: CSV file listing the different modulators (`data/modulator-list.csv`)
+- MODULATOR_LIST_FILE: CSV file listing the different modulators (`data/modulator-list.csv`)
 - CONFIG_FILE: Configuration file, for crossvalidation (`configs/crossval-configs.json`)
 - SPLIT_DATA_DIR: Directory where the crossvalidation folds are stored
+- CHECKPOINT_DIR: Directory where model checkpoints are stored
 - WANDB_GROUP: Weights and Biases group containing the individual training runs
 - SLURM_NNODES: Number of slurm nodes, e.g. 1
 
