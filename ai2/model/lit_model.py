@@ -4,7 +4,6 @@ from model.unet import UNet
 import lightning as pl
 import torch
 import torch.nn as nn
-import wandb
 
 
 class CorrosionUNet(pl.LightningModule):
@@ -91,7 +90,6 @@ class CorrosionUNet(pl.LightningModule):
         for score in scores:
             for prefix in ["train", "val", "test"]:
                 summary = "min" if "loss" in score else "max"
-                # wandb_run.define_metric('best-' + prefix + '-' + score, summary=summary)
                 wandb_run.define_metric(f"{prefix}-{score}", summary=summary)
 
     def _step(self, batch, prefix):
@@ -372,6 +370,13 @@ class CorrosionUNet(pl.LightningModule):
 
     @staticmethod
     def weights_init(model):
+        """
+        Initialize the weights of the model using Kaiming normal initialization for Conv2d layers
+        and constant initialization for BatchNorm2d layers.
+
+        Args:
+            model: The model to initialize.
+        """
         if isinstance(model, nn.Conv2d):
             nn.init.kaiming_normal_(model.weight, mode='fan_out', nonlinearity='relu')
             if model.bias is not None:
