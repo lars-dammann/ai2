@@ -1,0 +1,25 @@
+{
+    "datamodule": {
+        "batch_size": 10,
+        "datasize": 1024,
+        "color_jitter": {
+            "brightness": 0.15,
+            "contrast": 0.15,
+            "saturation": 0.05,
+            "hue": 0.01
+        }
+    },
+    "unet": {
+        "udepth": 6,
+        "startfeature": 32,
+        "lr": 0.00030894319262893765,
+        "weight_decay": 0.0000311853091214139
+    },
+    "trainer": {
+        "max_epochs": 150,
+        "accumulate_grad_batches": 3,
+        "gradient_clip_val": 100.0,
+        "precision": "bf16-mixed",
+        "log_every_n_steps": 20
+    }
+}
