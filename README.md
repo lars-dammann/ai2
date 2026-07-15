@@ -4,6 +4,8 @@ This repository contains the code of a U-Net-based regression model to quantitat
 
 For more information see the original paper [*Corrosion Beneath the Crust: Determination of Concealed Volume Loss from Optical Corrosion Imprints by Quantitative Imaging*]().
 
+Note that the data required to run reproduce the paper results is pusblished [*here*.](https://doi.org/)
+
 ## Project structure
 
 The project contains three directories of importance:
@@ -22,5 +24,36 @@ The project contains three directories of importance:
 - [`results`](./results): Evaluation notebook and results of the trained models and code to generate figures used in the paper.
 
 
-<!-- ## Installation
-To run the code create a conda or mamba environment with the required packages: -->
+## Installation
+To run the code create a conda or mamba environment with the required packages from the ai2.yml.
+
+```
+mamba create -f env.yml
+mamba activate ai2
+```
+
+## Running the scripts
+### Crossvalidation
+To reproduce the 18 trained models from the cross validation study, run `ai2/crossvaldiation.py` with the following environment variables set:
+- COMPLETE_DATA_DIR: Path to the complete dataset (`data`).
+- INHIBITOR_LIST_FILE: CSV file listing the different modulators (`data/modulator-list.csv`)
+- CONFIG_FILE: Configuration file, for crossvalidation (`configs/crossval-configs.json`)
+- SPLIT_DATA_DIR: Directory where the crossvalidation folds are stored
+- WANDB_GROUP: Weights and Biases group containing the individual training runs
+- SLURM_NNODES: Number of slurm nodes, e.g. 1
+
+### Inference
+To run the predictions, run `ai2/predict.py` with the following environment variables set:
+- DATA_DIR: Parent directory containing the data folds
+- PREDICTION_DIR: Directory where the predictions will be saved
+- CONFIG_DIR: Directory containing the configuration files (`model-configs`)
+- MODEL_DIR: Directory containing the trained models (`models`)
+
+### Hyperparameter Optimization
+To run the hyperparameter optimization script, run  `ai2/tune.py` with the following environment variables set:
+- DATA_DIR: Directory containg `train`, `val` and `test` folder containg a `after`, `before` and `mask` folder each
+- CONFIG_FILE: Configuration file (`config/tune-config`)
+- WANDB_PROJECT: WandB project where the results are logged to
+- WANDB_GROUP: WandB group where the results are logged to
+- CHECKPOINT_DIR: Directory where model checkpoints are saved to
+- SLURM_NNODES: Number of slurm nodes, e.g. 1
