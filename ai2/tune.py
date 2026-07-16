@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import logging
 import traceback
+from functools import partial
 
 import optuna
 from optuna.integration import PyTorchLightningPruningCallback
@@ -14,12 +15,13 @@ import wandb
 
 from datamodule.datamodule import CorrosionDataModule
 from model.lit_model import CorrosionUNet
-from utils.get_data import get_config
+from utils.normalizer import Normalizer
+from utils.get_data import get_config, update_config
 
 seed_everything(0, workers=True)
 
 
-def objective(trial):
+def objective(trial, base_config):
     # Finish any previous wandb run before starting a new one
     wandb.finish()
     # Suggest hyperparameters
@@ -29,9 +31,9 @@ def objective(trial):
     trial.suggest_float('lr', 1e-6, 1e-1, log=True)
     trial.suggest_float('weight_decay', 1e-6, 1e-1, log=True)
 
-    # Load and update config file with trial parameters
-    config_file = Path(os.getenv("CONFIG_FILE"))
-    config = get_config(config_file, trial.params)
+    # Update config file with trial parameters
+    config = base_config.copy()
+    config = update_config(config, trial.params)
 
     # Initialize model and datamodule
     model = CorrosionUNet(model_config=config["unet"])
@@ -47,7 +49,7 @@ def objective(trial):
     wandb_logger.experiment.config.update(config)
 
     # Checkpoint callback
-    checkpoint_dir = Path(os.getenv("CHECKPOINT_DIR")) / group / trial.number
+    checkpoint_dir = Path(os.getenv("CHECKPOINT_DIR")) / group / str(trial.number)
     checkpoint_callback = ModelCheckpoint(
         monitor="val-loss", dirpath=checkpoint_dir, save_last=True, save_top_k=1,
         every_n_epochs=1, filename=f'{group}-trial={trial.number}' + '-{epoch}-{val-loss:.2f}')
@@ -91,7 +93,17 @@ def run_optimization(n_trials=5):
     study = optuna.create_study(
         direction='minimize',
         pruner=pruner, sampler=sampler)
-    study.optimize(objective, n_trials=n_trials)
+
+    # Load base config file
+    config_file = Path(os.getenv("CONFIG_FILE"))
+    base_config = get_config(config_file)
+
+    # Calculate the normaliztion values from the training data and add them to the base config
+    data_dir = Path(os.getenv("DATA_DIR"))
+    normalization_values = Normalizer.calculate_normalization_stats(data_dir)
+    base_config["datamodule"]["normalization"] = normalization_values
+
+    study.optimize(partial(objective, base_config=base_config), n_trials=n_trials)
 
     # Print the best trial results
     print("Best trial:")
