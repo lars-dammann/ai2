@@ -28,7 +28,7 @@ The project contains three directories of importance:
 To run the code create a conda or mamba environment with the required packages from the ai2.yml.
 
 ```
-mamba create -f env.yml
+mamba create -f ai2.yml
 mamba activate ai2
 ```
 
