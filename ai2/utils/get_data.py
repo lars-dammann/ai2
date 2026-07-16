@@ -6,6 +6,7 @@ loading/updating JSON configuration files used by the project.
 
 import json
 from pathlib import Path
+from typing import Union, Optional
 
 import flatdict
 import numpy as np
@@ -14,7 +15,7 @@ from torchvision.io import read_image
 from torchvision.transforms import v2
 
 
-def load_config(file):
+def load_config(file: Union[str, Path]) -> dict:
     """Load a JSON configuration from a file.
 
     Args:
@@ -27,7 +28,7 @@ def load_config(file):
         return json.load(f)
 
 
-def get_config(file, new_config=None):
+def get_config(file: Union[str, Path], new_config: Optional[dict] = None) -> dict:
     """Load config data and optionally override nested values.
 
     Args:
@@ -44,7 +45,7 @@ def get_config(file, new_config=None):
 
     return update_config(config, new_config)
 
-def update_config(config, new_config):
+def update_config(config: dict, new_config: dict) -> dict:
     """Update a configuration dictionary with new values.
 
     Args:
@@ -67,7 +68,7 @@ def update_config(config, new_config):
     return flat.as_dict()
 
 
-def get_mask(path, sample_id):
+def get_mask(path: Path, sample_id: str) -> torch.Tensor:
     """Load a mask as a boolean tensor with a channel dimension.
 
     Args:
@@ -81,7 +82,7 @@ def get_mask(path, sample_id):
     return torch.from_numpy(mask[np.newaxis, :, :])
 
 
-def get_image(path, sample_id):
+def get_image(path: Path, sample_id: str) -> torch.Tensor:
     """Load an RGB image as a float32 tensor scaled to [0, 1].
 
     Args:
@@ -95,7 +96,7 @@ def get_image(path, sample_id):
     return scale(read_image(path / f"{sample_id}.png"))
 
 
-def get_height(path, sample_id):
+def get_height(path: Path, sample_id: str) -> torch.Tensor:
     """Load a height map as a float32 tensor with a channel dimension.
 
     Args:

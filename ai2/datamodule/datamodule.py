@@ -4,6 +4,7 @@ from utils.get_data import get_mask, get_image, get_height
 import os
 from pathlib import Path
 from collections import defaultdict
+from typing import Callable, Iterable, List, Tuple, Optional, Union
 
 import numpy as np
 import torch
@@ -22,7 +23,7 @@ class CorrosionDataset(Dataset):
         photometric_transform (callable | None): Optional transform applied only to RGB channels.
     """
 
-    def __init__(self, data_dir, config, transform=None, photometric_transform=None):
+    def __init__(self, data_dir: Union[str, Path], config: dict, transform: Optional[Callable] = None, photometric_transform: Optional[Callable] = None):
         self.data_dir = Path(data_dir)
         self.before_image_dir = self.data_dir / "before/image"
         self.before_height_dir = self.data_dir / "before/height"
@@ -35,7 +36,7 @@ class CorrosionDataset(Dataset):
 
         self.normalizer = self._get_normalizer()
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the number of available samples.
 
         Returns:
@@ -43,7 +44,7 @@ class CorrosionDataset(Dataset):
         """
         return len(self.sample_ids)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Load and preprocess a single sample.
 
         Args:
@@ -86,7 +87,7 @@ class CorrosionDataset(Dataset):
 
         return data[:before_dim, :, :], data[before_dim:, :, :], mask
 
-    def _get_normalizer(self):
+    def _get_normalizer(self) -> Normalizer:
         """Build the normalizer from the configuration values.
 
         Returns:
@@ -116,12 +117,12 @@ class PredictCorrosionDataset(CorrosionDataset):
         reconstruction_overlap (int): Number of overlapping pixels on each patch border.
     """
 
-    def __init__(self, data_dir, config, datasize, reconstruction_overlap=0):
+    def __init__(self, data_dir: Union[str, Path], config: dict, datasize: int, reconstruction_overlap: int = 0):
         super().__init__(data_dir, config, transform=None)
         self.datasize = datasize
         self.reconstruction_overlap = reconstruction_overlap
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, dict]:
         """Load one sample and split it into normalized patches.
 
         Args:
@@ -169,7 +170,7 @@ class PredictCorrosionDataset(CorrosionDataset):
 
         return torch.flatten(patch_tensor, start_dim=0, end_dim=1), sample_info
 
-    def _slide_width(self, data, n_width, n_h, height_position, patch_positions, patch_tensor):
+    def _slide_width(self, data: torch.Tensor, n_width: int, n_h: int, height_position: int, patch_positions: List[Tuple[int, int]], patch_tensor: torch.Tensor) -> None:
         """Crop a row of patches across the image width.
 
         Args:
@@ -196,7 +197,7 @@ class PredictCorrosionDataset(CorrosionDataset):
         patch_tensor[n_h, n_width, :, :, :] = v2.functional.crop(
             data, top=top, left=left, height=self.datasize, width=self.datasize)
 
-    def _get_normalizer(self):
+    def _get_normalizer(self) -> Normalizer:
         """Build the prediction normalizer from the configuration values.
 
         Returns:
@@ -223,8 +224,8 @@ class CorrosionDataModule(pl.LightningDataModule):
         predict_dataset (str): Split name used during prediction.
     """
 
-    def __init__(self, data_dir, datamodule_config, reconstruction_overlap=0,
-                 predict_dataset="test"):
+    def __init__(self, data_dir: Union[str, Path], datamodule_config: dict, reconstruction_overlap: int = 0,
+                 predict_dataset: str = "test") -> None:
         super().__init__()
         self.config = datamodule_config
         self.data_dir = Path(data_dir)
@@ -252,7 +253,7 @@ class CorrosionDataModule(pl.LightningDataModule):
             self.num_workers = 2
 
     @staticmethod
-    def random_rot90(img):
+    def random_rot90(img: torch.Tensor) -> torch.Tensor:
         """Rotate a tensor by a random multiple of 90 degrees.
 
         Args:
@@ -265,7 +266,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         return torch.rot90(img, k, dims=[1, 2])
 
     @staticmethod
-    def predict_coallate_function(batch):
+    def predict_coallate_function(batch: Iterable[Tuple[torch.Tensor, dict]]) -> Tuple[torch.Tensor, dict]:
         """Flatten patch batches so all patches from one sample stay adjacent.
 
         Args:
@@ -277,7 +278,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         data, position_dicts = zip(*batch)
         return torch.cat(data, 0), dict(pair for d in position_dicts for pair in d.items())
 
-    def setup(self, stage: str):
+    def setup(self, stage: Optional[str]) -> None:
         """Create datasets for the requested Lightning stage.
 
         Args:
@@ -300,7 +301,7 @@ class CorrosionDataModule(pl.LightningDataModule):
                 self.data_dir / self.predict_dataset, self.config, self.data_size,
                 reconstruction_overlap=self.reconstruction_overlap)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         """Build the training DataLoader.
 
         Returns:
@@ -313,7 +314,7 @@ class CorrosionDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         """Build the validation DataLoader.
 
         Returns:
@@ -326,7 +327,7 @@ class CorrosionDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         """Build the test DataLoader.
 
         Returns:
@@ -339,7 +340,7 @@ class CorrosionDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
         )
 
-    def predict_dataloader(self):
+    def predict_dataloader(self) -> DataLoader:
         """Build the prediction DataLoader.
 
         Returns:

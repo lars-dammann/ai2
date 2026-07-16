@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import Dict, Tuple, Any
 
 
 class DoubleConv(nn.Module):
@@ -10,7 +11,7 @@ class DoubleConv(nn.Module):
         out_channels (int): Number of output feature channels.
     """
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
         self.groups = max(1, out_channels // 16)
         self.net = nn.Sequential(
@@ -23,7 +24,7 @@ class DoubleConv(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Apply two convolution blocks.
 
         Args:
@@ -44,7 +45,7 @@ class UNet(nn.Module):
         out_channels (int): Number of output channels.
     """
 
-    def __init__(self, config, in_channels=4, out_channels=1):
+    def __init__(self, config: dict, in_channels: int = 4, out_channels: int = 1) -> None:
         super().__init__()
 
         features = [config["startfeature"] * 2 ** i for i in range(config["udepth"])]
@@ -76,7 +77,7 @@ class UNet(nn.Module):
         self.bottleneck = DoubleConv(head_features[-1], last_feature)
         self.final_conv = nn.Conv2d(first_feature, out_channels, kernel_size=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Run the encoder-decoder pass and add the residual height channel.
 
         Args:

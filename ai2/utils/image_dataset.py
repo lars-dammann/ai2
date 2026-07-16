@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from enum import StrEnum
+from typing import Sequence, Optional, List, Iterable, Any, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,8 +30,8 @@ class ImageDataset:
     """
 
     def __init__(
-            self, data_dir, model=None, split_type=["test"],
-            sample_ids=None, image_loader="matplotlib"):
+        self, data_dir: Union[str, Path], model: Optional[str] = None, split_type: Sequence[str] = ("test",),
+        sample_ids: Optional[Sequence[str]] = None, image_loader: Union[str, ImageLoader] = "matplotlib") -> None:
         """Create an ImageDataset.
 
         Args:
@@ -72,10 +73,10 @@ class ImageDataset:
         self.file_lists = {key: self._generate_file_lists(
             data_dir) for key, data_dir in self.data_dirs.items()}
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(next(iter(self.file_lists.values())))
 
-    def _generate_file_lists(self, data_dir):
+    def _generate_file_lists(self, data_dir: Path) -> List[Path]:
         """Generate a list of file paths for the given data directory.
 
         If `sample_ids` was provided at construction time, this will return the
@@ -92,7 +93,7 @@ class ImageDataset:
         else:
             return self._get_all_files(data_dir)
 
-    def load_file(self, file_path):
+    def load_file(self, file_path: Path) -> np.ndarray:
         """Load a file and return its contents as a numpy array.
 
         Args:
@@ -108,7 +109,7 @@ class ImageDataset:
         else:
             raise ValueError(f"Unsupported file extension: {file_path.suffix}")
 
-    def _get_all_files(self, data_dir):
+    def _get_all_files(self, data_dir: Path) -> List[Path]:
         """List all files in the given directory, sorted by name.
 
         Args:
@@ -122,7 +123,7 @@ class ImageDataset:
         path_list = ([data_dir / file for file in file_list])
         return path_list
 
-    def _get_ids_files(self, data_dir, image_ids):
+    def _get_ids_files(self, data_dir: Path, image_ids: Sequence[str]) -> List[Path]:
         """Return files matching the provided image IDs.
 
         For every `image_id` this looks for a ``.npy`` file first and falls back to
@@ -152,7 +153,7 @@ class ImageDataset:
                 raise FileNotFoundError(f"Files for image ID {image_id} not found.")
         return data_list
 
-    def iterate_files(self, identifiers):
+    def iterate_files(self, identifiers: Sequence[str]) -> Iterable[List[Any]]:
         """Yield loaded data arrays for the requested file list identifiers.
 
         Args:
@@ -168,7 +169,7 @@ class ImageDataset:
             loaded_data.append(files[0].stem)
             yield loaded_data
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[List[Any]]:
         """Default iterator for the dataset.
 
         By default this iterates over the test split and yields ``[height, model_pred, mask, id]``.

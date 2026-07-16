@@ -8,6 +8,7 @@ operate on PyTorch tensors.
 import utils.image_dataset
 
 from pathlib import Path
+from typing import Union, Tuple, Sequence
 
 import numpy as np
 import torch
@@ -27,7 +28,7 @@ class Normalizer:
         channels (int): Number of channels covered by the statistics.
     """
 
-    def __init__(self, mean, std):
+    def __init__(self, mean: Union[Sequence[float], np.ndarray], std: Union[Sequence[float], np.ndarray]) -> None:
         """Initialize a Normalizer with precomputed per-channel stats.
 
         Parameters
@@ -42,7 +43,7 @@ class Normalizer:
         self.channels = len(mean)
 
     @classmethod
-    def get_concatenated_data(cls, before_image, before_height, after_height, mask):
+    def get_concatenated_data(cls, before_image: np.ndarray, before_height: np.ndarray, after_height: np.ndarray, mask: np.ndarray) -> np.ma.MaskedArray:
         """Concatenate channel data and apply an expanded mask.
 
         Args:
@@ -64,7 +65,7 @@ class Normalizer:
         return cls.get_masked_data(concatenated_data, image_mask)
 
     @classmethod
-    def calculate_normalization_stats(cls, data_dir):
+    def calculate_normalization_stats(cls, data_dir: Union[str, Path]) -> dict:
         """Compute per-channel mean and standard deviation from training data.
 
         Scans the training split under ``data_dir`` and computes masked per-channel
@@ -116,7 +117,7 @@ class Normalizer:
         return np.ma.array(data, mask=mask)
 
     @staticmethod
-    def calc_data_stats(img: np.ma.MaskedArray) -> tuple:
+    def calc_data_stats(img: np.ma.MaskedArray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate per-channel sample statistics from a masked image.
 
         Args:
@@ -160,7 +161,7 @@ class Normalizer:
         """
         return sum_val / count
 
-    def normalize(self, data):
+    def normalize(self, data: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Normalize a dense (unmasked) tensor per channel.
 
         Args:
@@ -171,7 +172,7 @@ class Normalizer:
         """
         return (data - self.mean[:, None, None]) / self.std[:, None, None]
 
-    def _normalize(self, data):
+    def _normalize(self, data: np.ndarray) -> np.ndarray:
         """Normalize flattened unmasked values for all channels.
 
         Args:
@@ -182,7 +183,7 @@ class Normalizer:
         """
         return ((data.reshape(self.channels, -1) - self.mean[:, None]) / self.std[:, None]).flatten()
 
-    def normalize_masked(self, data, mask):
+    def normalize_masked(self, data: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Normalize only the unmasked (valid) entries of a tensor.
 
         Args:
@@ -198,7 +199,7 @@ class Normalizer:
         cdata[inv_mask] = self._normalize(data[inv_mask])
         return cdata
 
-    def denormalize(self, data):
+    def denormalize(self, data: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Denormalize a dense (unmasked) tensor per channel.
 
         Args:
@@ -209,7 +210,7 @@ class Normalizer:
         """
         return (data * self.std[:, None, None] + self.mean[:, None, None])
 
-    def _denormalize(self, data):
+    def _denormalize(self, data: np.ndarray) -> np.ndarray:
         """Denormalize flattened normalized values for all channels.
 
         Args:
@@ -220,7 +221,7 @@ class Normalizer:
         """
         return ((data.reshape(self.channels, -1) * self.std[:, None] + self.mean[:, None])).flatten()
 
-    def denormalize_masked(self, data, mask):
+    def denormalize_masked(self, data: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Denormalize only the unmasked (valid) entries of a tensor.
 
         Args:
@@ -235,7 +236,7 @@ class Normalizer:
         cdata[inv_mask] = self._denormalize(data[inv_mask])
         return cdata
 
-    def _prepare_mask(self, mask):
+    def _prepare_mask(self, mask: torch.Tensor) -> torch.Tensor:
         """Prepare a boolean mask indexed by channel.
 
         The input mask is expected to have shape ``(1, H, W)`` with ``True`` marking
