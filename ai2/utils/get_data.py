@@ -38,6 +38,18 @@ def get_config(file, new_config=None):
     if new_config is None:
         return config
 
+    return update_config(config, new_config)
+
+def update_config(config, new_config):
+    """Update a configuration dictionary with new values.
+
+    Args:
+        config: Original configuration dictionary.
+        new_config: Dictionary of new values to update the original config.
+
+    Returns:
+        Updated configuration dictionary.
+    """
     flat = flatdict.FlatDict(config)
 
     for new_key, new_value in new_config.items():
