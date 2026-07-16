@@ -1,4 +1,8 @@
-"""Data loading and configuration helpers for the ai2 package."""
+"""Data loading and configuration helpers for the ai2 package.
+
+This module supplies helpers for loading images, masks, heights and for
+loading/updating JSON configuration files used by the project.
+"""
 
 import json
 from pathlib import Path
@@ -11,13 +15,13 @@ from torchvision.transforms import v2
 
 
 def load_config(file):
-    """Load a JSON config file from the repository configs directory.
+    """Load a JSON configuration from a file.
 
     Args:
-        file: Optional config filename in the configs directory.
+        file (str | pathlib.Path): Path to the JSON configuration file.
 
     Returns:
-        Parsed configuration dictionary.
+        dict: Parsed configuration dictionary.
     """
     with open(file, "r") as f:
         return json.load(f)
@@ -27,11 +31,11 @@ def get_config(file, new_config=None):
     """Load config data and optionally override nested values.
 
     Args:
-        new_config: Optional key-value overrides applied to nested config keys.
-        file: Optional config filename in the configs directory.
+        file (str | pathlib.Path): Path to the JSON configuration file.
+        new_config (dict | None): Optional key-value overrides applied to nested config keys.
 
     Returns:
-        Configuration dictionary with optional overrides applied.
+        dict: Configuration dictionary with optional overrides applied.
     """
     config = load_config(file)
 
@@ -44,11 +48,11 @@ def update_config(config, new_config):
     """Update a configuration dictionary with new values.
 
     Args:
-        config: Original configuration dictionary.
-        new_config: Dictionary of new values to update the original config.
+        config (dict): Original configuration dictionary.
+        new_config (dict): Dictionary of new values to update the original config.
 
     Returns:
-        Updated configuration dictionary.
+        dict: Updated configuration dictionary.
     """
     flat = flatdict.FlatDict(config)
 
@@ -67,11 +71,11 @@ def get_mask(path, sample_id):
     """Load a mask as a boolean tensor with a channel dimension.
 
     Args:
-        path: Directory containing mask files.
-        sample_id: Sample identifier without file extension.
+        path (pathlib.Path): Directory containing mask files.
+        sample_id (str): Sample identifier without file extension.
 
     Returns:
-        Boolean tensor with shape (1, H, W).
+        torch.Tensor: Boolean tensor with shape (1, H, W).
     """
     mask = np.load(path / f"{sample_id}.npy").astype(bool)
     return torch.from_numpy(mask[np.newaxis, :, :])
@@ -81,11 +85,11 @@ def get_image(path, sample_id):
     """Load an RGB image as a float32 tensor scaled to [0, 1].
 
     Args:
-        path: Directory containing image files.
-        sample_id: Sample identifier without file extension.
+        path (pathlib.Path): Directory containing image files.
+        sample_id (str): Sample identifier without file extension.
 
     Returns:
-        Float tensor with shape (3, H, W).
+        torch.Tensor: Float tensor with shape (3, H, W).
     """
     scale = v2.ToDtype(torch.float32, scale=True)
     return scale(read_image(path / f"{sample_id}.png"))
@@ -95,11 +99,11 @@ def get_height(path, sample_id):
     """Load a height map as a float32 tensor with a channel dimension.
 
     Args:
-        path: Directory containing height-map files.
-        sample_id: Sample identifier without file extension.
+        path (pathlib.Path): Directory containing height-map files.
+        sample_id (str): Sample identifier without file extension.
 
     Returns:
-        Float tensor with shape (1, H, W).
+        torch.Tensor: Float tensor with shape (1, H, W).
     """
     return torch.from_numpy(
         np.load(path / f"{sample_id}.npy")[np.newaxis, :, :].astype(np.float32)

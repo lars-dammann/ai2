@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 import random
 import shutil
-from typing import Dict, List, Sequence
+from typing import List, Sequence, Tuple
 
 import pandas as pd
 
@@ -14,15 +14,15 @@ class CrossValidationDataSplitter:
     """Generate and materialize k-fold splits for corrosion data.
 
     This splitter groups files by sample base IDs (for example ``x-x-x`` from
-    ``x-x-x-1.png``), enforces that NaCl samples are always in training, and
-    supports fold-by-fold overwrite of one shared output directory.
+    ``x-x-x-1.png``) and enforces that NaCl samples are kept in training.
 
     Args:
-        original_path: Root directory containing ``before``, ``after``, and ``mask``.
-        modulator_list_file: CSV metadata file with modulator names and sample ids.
-        save_path: Destination directory where train/val/test splits are copied.
-        num_folds: Number of validation folds to generate from non-NaCl samples.
-        random_seed: Seed used for deterministic fold shuffling.
+        source_dir (pathlib.Path): Root directory containing ``before``, ``after``, and ``mask`` folders.
+        modulator_list_file (pathlib.Path): CSV metadata file with modulator names and sample ids.
+        target_dir (pathlib.Path): Destination directory where train/val/test splits are copied.
+        random_seed (int, optional): Seed used for deterministic fold shuffling. Defaults to 0.
+        val_size (int, optional): Number of samples to use for validation per fold. Defaults to 25.
+        test_size (int, optional): Number of samples to use for testing per fold. Defaults to 25.
     """
     MASK_PATH = "mask"
     BEFORE_PATH = "before"
@@ -30,6 +30,7 @@ class CrossValidationDataSplitter:
     IMAGE_PATH = "image"
     HEIGHT_PATH = "height"
 
+    # Regular expression pattern to extract the base sample ID from a sample filename.
     _SAMPLE_BASE_PATTERN = re.compile(r"^(?P<sample_group_id>.+)-\d+$")
 
     def __init__(
@@ -58,20 +59,29 @@ class CrossValidationDataSplitter:
 
     @classmethod
     def _get_sample_group_ids_from_path(cls, dir: Path) -> List[str]:
-        """Collect sample group IDs from directory.
+        """Collect sample group IDs from a directory.
+
+        Args:
+            dir (pathlib.Path): Directory containing sample files whose stems end with ``-<index>``.
 
         Returns:
-            Sorted sample group IDs discovered in the source data directory.
+            list[str]: Sorted unique sample group IDs (e.g. ``x-x-x``).
         """
         return sorted({cls._extract_sample_group_id(name)
                        for name in cls._get_sample_ids_from_path(dir)})
 
     @classmethod
     def _get_sample_ids_from_path(cls, dir: Path) -> List[str]:
-        """Collect sample IDs from directory.
+        """List file stems from a directory.
+
+        Args:
+            dir (pathlib.Path): Directory to scan for files.
 
         Returns:
-            Sorted sample group IDs discovered in the source data directory.
+            list[str]: Sorted list of file stems (e.g. ``x-x-x-1``).
+
+        Raises:
+            ValueError: If the directory contains no files.
         """
         sample_ids = [path.stem for path in dir.glob("*") if path.is_file()]
         if not sample_ids:
@@ -80,13 +90,16 @@ class CrossValidationDataSplitter:
 
     @classmethod
     def _extract_sample_group_id(cls, file_name: str) -> str:
-        """Extract the base sample ID from a sample filename.
+        """Extract the base sample ID from a file stem.
 
         Args:
-            file_path: Sample file path whose stem ends in a numeric suffix.
+            file_name (str): File stem expected to end with a numeric suffix (e.g. ``x-x-x-1``).
 
         Returns:
-            Base sample ID without the trailing sample index.
+            str: Base sample ID without the trailing numeric index (e.g. ``x-x-x``).
+
+        Raises:
+            ValueError: If the file stem does not match the expected pattern.
         """
         match = cls._SAMPLE_BASE_PATTERN.match(file_name)
         if match is None:
@@ -94,10 +107,14 @@ class CrossValidationDataSplitter:
         return match.group("sample_group_id")
 
     def _extract_nacl_sample_ids(self) -> List[str]:
-        """Extract NaCl group IDs that are present in the discovered dataset.
+        """Extract NaCl sample group IDs present in the dataset.
+
+        The method reads the modulators CSV, selects rows whose ``name`` contains
+        "NaCl" (case-insensitive), extracts their base sample IDs and returns the
+        intersection with the sample IDs discovered on disk.
 
         Returns:
-            Sorted list of NaCl group sample IDs found in source files.
+            list[str]: Sorted list of NaCl sample group IDs present in the source data.
         """
         modulators = pd.read_csv(self.modulator_list_file)
         nacl_rows = modulators[modulators["name"].str.contains("NaCl", case=False)]
@@ -107,14 +124,16 @@ class CrossValidationDataSplitter:
         }
         return sorted(nacl_ids.intersection(self._all_sample_group_ids))
 
-    def _split_into_folds(self, sample_ids: Sequence[str]) -> List[List[str]]:
+    def _split_into_folds(self, sample_ids: Sequence[str]) -> Tuple[List[List[str]], List[List[str]], List[List[str]]]:
         """Split sample IDs into k folds.
 
         Args:
-            sample_ids: Ordered list of sample IDs to distribute over folds.
+            sample_ids (Sequence[str]): Ordered list of sample IDs to distribute over folds.
 
         Returns:
-            List of folds, each containing sample IDs.
+            tuple[list[list[str]], list[list[str]], list[list[str]]]:
+                (train_folds, val_folds, test_folds) where each element is a list of folds
+                and each fold is a list of sample IDs.
         """
         train_folds = []
         val_folds = []
@@ -132,23 +151,28 @@ class CrossValidationDataSplitter:
 
         # Include the last missing test set
         train_sample_ids, val_sample_ids, test_sample_ids = self._extract_fold_sample_ids(
-                0, sample_ids, reverse=True)
+            0, sample_ids, reverse=True)
         train_folds.append(sorted(train_sample_ids))
         val_folds.append(sorted(val_sample_ids))
         test_folds.append(sorted(test_sample_ids))
 
         return train_folds, val_folds, test_folds
 
-    def _extract_fold_sample_ids(self, fold_index: int, sample_ids: Sequence[str], reverse: bool = False) -> List[str]:
+    def _extract_fold_sample_ids(
+            self, fold_index: int, sample_ids: Sequence[str],
+            reverse: bool = False) -> Tuple[List[str], List[str], List[str]]:
         """Extract sample IDs for a specific fold.
 
         Args:
-            fold_index: Zero-based fold index.
-            sample_ids: List of sample IDs to distribute.
-            reverse: Whether to reverse the order of validation and test samples.
+            fold_index (int): Zero-based fold index.
+            sample_ids (Sequence[str]): List of sample IDs to distribute.
+            reverse (bool): If True, reverse the split ordering for validation/test.
 
         Returns:
-            List of sample IDs for the specified fold.
+            tuple[list[str], list[str], list[str]]: (train_sample_ids, val_sample_ids, test_sample_ids).
+
+        Raises:
+            IndexError: If there are not enough samples to satisfy the requested validation slice.
         """
         # Copy the original samples ids
         train_sample_ids = sample_ids.copy()
@@ -181,19 +205,21 @@ class CrossValidationDataSplitter:
         """Filter out specific sample IDs from a list.
 
         Args:
-            sample_ids: List of sample IDs to filter.
-            exclude_ids: Sample IDs to exclude from the result.
+            sample_ids (Sequence[str]): List of sample IDs to filter.
+            exclude_ids (Sequence[str]): Sample IDs to exclude from the result.
 
         Returns:
-            List of sample IDs after filtering.
+            list[str]: Filtered sample IDs.
         """
         return [sample_id for sample_id in sample_ids if sample_id not in exclude_ids]
 
-    def _generate_fold_splits(self) -> List[Dict[str, List[str]]]:
+    def _generate_fold_splits(self) -> Tuple[List[List[str]], List[List[str]], List[List[str]]]:
         """Create train/val/test ID lists for each fold.
 
         Returns:
-            List of split dictionaries with keys ``train``, ``val``, ``test``.
+            tuple[list[list[str]], list[list[str]], list[list[str]]]:
+                (train_folds, val_folds, test_folds) where each element is a list of folds
+                and each fold is a list of sample group IDs.
         """
         # Filter out all NaCl and problem sample IDs, shuffle the rest
         filtered_ids = self._filter_sample_ids(
@@ -210,10 +236,12 @@ class CrossValidationDataSplitter:
         return train_folds, val_folds, test_folds
 
     def clean_target_path(self) -> None:
-        """Delete existing split directories.
+        """Delete existing split directories under the target path.
+
+        This removes any directory named by the fold index (``target_dir/0``, ``target_dir/1``, ...).
 
         Returns:
-            None.
+            None
         """
         for fold in range(self.num_folds):
             split_dir = self.target_dir / f"{fold}"
@@ -223,16 +251,16 @@ class CrossValidationDataSplitter:
     def _copy_dataset(
             self, id_list: Sequence[str],
             fold_index: int, split_name: str, overwrite: bool = False) -> None:
-        """Copy all files matching sample IDs into one split directory.
+        """Copy files matching sample IDs into a split directory for a fold.
 
         Args:
-            id_list: Sample base IDs to copy.
-            fold_index: Zero-based fold index.
-            split_name: Split directory name, one of train/val/test.
-            overwrite: If True, overwrite existing files in the target directory.
+            id_list (Sequence[str]): Sample base IDs to copy.
+            fold_index (int): Zero-based fold index.
+            split_name (str): Split directory name, one of 'train', 'val', 'test'.
+            overwrite (bool): If True, overwrite existing files in the target directory.
 
         Returns:
-            None.
+            None
         """
         for time_name in [self.BEFORE_PATH, self.AFTER_PATH]:
             for data_type in [self.IMAGE_PATH, self.HEIGHT_PATH]:
@@ -248,6 +276,21 @@ class CrossValidationDataSplitter:
     def _copy_files(
             self, id_list: Sequence[str],
             source_dir: Path, target_dir: Path, overwrite: bool = False) -> None:
+        """Copy files for the given sample IDs from source to target.
+
+        Args:
+            id_list (Sequence[str]): Sample base IDs to copy.
+            source_dir (pathlib.Path): Directory containing source files to search.
+            target_dir (pathlib.Path): Destination directory where files will be copied.
+            overwrite (bool): If True, overwrite existing files in the target directory.
+
+        Raises:
+            FileExistsError: If a target file already exists and ``overwrite`` is False.
+
+        Returns:
+            None
+        """
+
         target_dir.mkdir(parents=True, exist_ok=True)
         for sample_id in id_list:
             for source_file in source_dir.rglob(f"{sample_id}-*"):
@@ -256,14 +299,15 @@ class CrossValidationDataSplitter:
                         f"Target file {target_dir / source_file.name} already exists.")
                 shutil.copy(source_file, target_dir)
 
-    def materialize_fold(self, overwrite=False, clean_target_dir=False) -> Dict[str, List[str]]:
-        """Overwrite target path with the selected fold's train/val/test files.
+    def materialize_fold(self, overwrite: bool = False, clean_target_dir: bool = False) -> None:
+        """Materialize all generated folds under the target directory.
 
         Args:
-            overwrite: If True, overwrite existing files in the target directory. If False, raise an error if target files already exist.
-            clean_target_dir: If True, delete all existing fold directories before materializing the new fold.
+            overwrite (bool): If True, overwrite existing files in the target directory. If False, raise an error if target files already exist.
+            clean_target_dir (bool): If True, delete all existing fold directories before materializing the new fold.
+
         Returns:
-            None.
+            None
         """
         if clean_target_dir:
             self.clean_target_path()
@@ -278,11 +322,19 @@ class CrossValidationDataSplitter:
                 fold_index, "test", overwrite=overwrite)
 
     def validate_splits(self) -> None:
-        """Validate that the generated splits are mutually exclusive and complete."""
+        """Validate all generated folds.
+
+        For each generated fold this runs consistency, exclusivity and completeness
+        checks. Any failing check raises a ``ValueError`` with details.
+
+        Raises:
+            ValueError: If any per-fold validation check fails.
+
+        Returns:
+            None
+        """
 
         for fold_index in range(self.num_folds):
-            self._get_sample_ids_from_path
-
             # Validate that the before/height/image after/height/image and mask files contain the same sample IDs
             self._validate_split_consistency(self.target_dir / f"{fold_index}")
 
@@ -293,24 +345,50 @@ class CrossValidationDataSplitter:
             self._validate_completeness(self.target_dir / f"{fold_index}")
 
     def _validate_split_consistency(self, fold_dir: Path) -> None:
-        """Validate that all data types contain the same sample IDs within a split."""
+        """Validate that all data types contain the same sample IDs within a split.
+
+        For each split ("train", "val", "test") this verifies that the set of sample
+        IDs present in the mask directory matches the set present in each of the
+        corresponding before/after image/height directories.
+
+        Args:
+            fold_dir (pathlib.Path): Path to the fold directory to validate (e.g. target_dir/0).
+
+        Raises:
+            ValueError: If an expected subdirectory is missing or the sample ID sets do not match.
+
+        Returns:
+            None
+        """
+
         for split in ["train", "val", "test"]:
             split_dir = fold_dir / split
 
             compare_ids = set(self._get_sample_ids_from_path(split_dir / self.MASK_PATH))
             for time_name in [self.BEFORE_PATH, self.AFTER_PATH]:
                 for data_type in [self.IMAGE_PATH, self.HEIGHT_PATH]:
-                    dir = split_dir / time_name / data_type
-                    if not dir.exists():
+                    data_dir = split_dir / time_name / data_type
+                    if not data_dir.exists():
                         raise ValueError(
-                            f"Expected directory {dir} does not exist for split consistency check.")
+                            f"Expected directory {data_dir} does not exist for split consistency check.")
 
-                    if not compare_ids == set(self._get_sample_ids_from_path(dir)):
+                    if compare_ids != set(self._get_sample_ids_from_path(data_dir)):
                         raise ValueError(
                             f"Data type consistency check failed for {split_dir} between mask and {time_name}/{data_type}")
 
     def _validate_exclusivity(self, fold_dir: Path) -> None:
-        """Validate that train/val/test splits are mutually exclusive."""
+        """Validate that train/val/test splits are mutually exclusive.
+
+        Args:
+            fold_dir (pathlib.Path): Path to the fold directory to validate (e.g. target_dir/0).
+
+        Raises:
+            ValueError: If any pair of splits share sample IDs.
+
+        Returns:
+            None
+        """
+
         train_ids = set(self._get_sample_ids_from_path(fold_dir / "train" / self.MASK_PATH))
         val_ids = set(self._get_sample_ids_from_path(fold_dir / "val" / self.MASK_PATH))
         test_ids = set(self._get_sample_ids_from_path(fold_dir / "test" / self.MASK_PATH))
@@ -323,7 +401,19 @@ class CrossValidationDataSplitter:
             raise ValueError(f"Val and test splits are not mutually exclusive in {fold_dir}")
 
     def _validate_completeness(self, fold_dir: Path) -> None:
-        """Validate that train/val/test splits together contain all sample IDs."""
+        """Validate that train/val/test splits together contain all sample IDs.
+
+        Args:
+            fold_dir (pathlib.Path): Path to the fold directory to validate (e.g. target_dir/0).
+
+        Raises:
+            ValueError: If the union of train/val/test sample IDs does not equal the complete
+                set of sample IDs discovered in the source data mask directory.
+
+        Returns:
+            None
+        """
+
         train_ids = set(self._get_sample_ids_from_path(fold_dir / "train" / self.MASK_PATH))
         val_ids = set(self._get_sample_ids_from_path(fold_dir / "val" / self.MASK_PATH))
         test_ids = set(self._get_sample_ids_from_path(fold_dir / "test" / self.MASK_PATH))
@@ -333,18 +423,3 @@ class CrossValidationDataSplitter:
         if all_split_ids != complete_sample_ids:
             raise ValueError(
                 f"Train/val/test splits in {fold_dir} do not together contain all sample IDs")
-
-
-if __name__ == "__main__":
-    base_path = Path(os.path.dirname(__file__)).parent.parent / "crossval-data"
-    target_path = base_path / "split"
-    source_path = base_path / "complete"
-    modulator_list_file = source_path / "modulator-list.csv"
-
-    splitter = CrossValidationDataSplitter(
-        target_dir=target_path, source_dir=source_path,
-        modulator_list_file=modulator_list_file, val_size=10, test_size=10, random_seed=1)
-    # splitter.materialize_fold(clean_target_dir=True)
-    splitter.validate_splits()
-    print(f"Generated {splitter.num_folds} folds with NaCl samples: "
-          f"{len(splitter._nacl_sample_group_ids)}")

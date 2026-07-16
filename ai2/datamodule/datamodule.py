@@ -16,10 +16,10 @@ class CorrosionDataset(Dataset):
     """Dataset for supervised training, validation, and testing.
 
     Args:
-        data_dir: Root directory for one split containing before/after/mask folders.
-        config: Configuration dictionary with normalization statistics.
-        transform: Optional spatial transform applied jointly to data and mask.
-        photometric_transform: Optional transform applied only to RGB channels.
+        data_dir (str | pathlib.Path): Root directory for one split containing before/after/mask folders.
+        config (dict): Configuration dictionary with normalization statistics.
+        transform (callable | None): Optional spatial transform applied jointly to data and mask.
+        photometric_transform (callable | None): Optional transform applied only to RGB channels.
     """
 
     def __init__(self, data_dir, config, transform=None, photometric_transform=None):
@@ -39,7 +39,7 @@ class CorrosionDataset(Dataset):
         """Return the number of available samples.
 
         Returns:
-            Number of samples in the dataset.
+            int: Number of samples in the dataset.
         """
         return len(self.sample_ids)
 
@@ -47,10 +47,10 @@ class CorrosionDataset(Dataset):
         """Load and preprocess a single sample.
 
         Args:
-            idx: Index of the sample.
+            idx (int): Index of the sample.
 
         Returns:
-            Tuple containing model input, target height map, and boolean mask.
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Tuple containing model input, target height map, and boolean mask.
         """
         sample_id = self.sample_ids[idx]
 
@@ -90,7 +90,7 @@ class CorrosionDataset(Dataset):
         """Build the normalizer from the configuration values.
 
         Returns:
-            Normalizer configured for RGB, before-height, and after-height channels.
+            Normalizer: Configured for RGB, before-height, and after-height channels.
         """
         normalization_dict = self.config["normalization"]
         mean = np.concatenate(
@@ -110,10 +110,10 @@ class PredictCorrosionDataset(CorrosionDataset):
     """Dataset that yields overlapping patches for prediction.
 
     Args:
-        data_dir: Root directory for the prediction split.
-        config: Configuration dictionary with normalization statistics.
-        datasize: Patch size used for model inference.
-        reconstruction_overlap: Number of overlapping pixels on each patch border.
+        data_dir (str | pathlib.Path): Root directory for the prediction split.
+        config (dict): Configuration dictionary with normalization statistics.
+        datasize (int): Patch size used for model inference.
+        reconstruction_overlap (int): Number of overlapping pixels on each patch border.
     """
 
     def __init__(self, data_dir, config, datasize, reconstruction_overlap=0):
@@ -125,10 +125,10 @@ class PredictCorrosionDataset(CorrosionDataset):
         """Load one sample and split it into normalized patches.
 
         Args:
-            idx: Index of the sample.
+            idx (int): Index of the sample.
 
         Returns:
-            Tuple with flattened patch tensor and reconstruction metadata.
+            tuple[torch.Tensor, dict]: Tuple with flattened patch tensor and reconstruction metadata.
         """
         sample_id = self.sample_ids[idx]
 
@@ -173,15 +173,15 @@ class PredictCorrosionDataset(CorrosionDataset):
         """Crop a row of patches across the image width.
 
         Args:
-            data: Full normalized sample tensor.
-            n_width: Number of non-terminal horizontal patch steps.
-            n_h: Row index in the patch tensor.
-            height_position: Vertical start index for the current row.
-            patch_positions: Output list of (top, left) patch positions.
-            patch_tensor: Output tensor storing all cropped patches.
+            data (torch.Tensor): Full normalized sample tensor.
+            n_width (int): Number of non-terminal horizontal patch steps.
+            n_h (int): Row index in the patch tensor.
+            height_position (int): Vertical start index for the current row.
+            patch_positions (list): Output list of (top, left) patch positions.
+            patch_tensor (torch.Tensor): Output tensor storing all cropped patches.
 
         Returns:
-            None. Results are written into patch_positions and patch_tensor.
+            None: Results are written into patch_positions and patch_tensor.
         """
         top = height_position
         for n_w in range(n_width):
@@ -200,7 +200,7 @@ class PredictCorrosionDataset(CorrosionDataset):
         """Build the prediction normalizer from the configuration values.
 
         Returns:
-            Normalizer configured for RGB and before-height channels.
+            Normalizer: Configured for RGB and before-height channels.
         """
         normalization_dict = self.config["normalization"]
         mean = np.concatenate(
@@ -218,9 +218,9 @@ class CorrosionDataModule(pl.LightningDataModule):
     """Lightning DataModule for train, validation, test, and predict steps.
 
     Args:
-        datamodule_config: Data-related configuration including paths and batch size.
-        reconstruction_overlap: Overlap in pixels used by prediction reconstruction.
-        predict_dataset: Split name used during prediction.
+        datamodule_config (dict): Data-related configuration including paths and batch size.
+        reconstruction_overlap (int): Overlap in pixels used by prediction reconstruction.
+        predict_dataset (str): Split name used during prediction.
     """
 
     def __init__(self, data_dir, datamodule_config, reconstruction_overlap=0,
@@ -256,10 +256,10 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Rotate a tensor by a random multiple of 90 degrees.
 
         Args:
-            img: Input image tensor.
+            img (torch.Tensor): Input image tensor.
 
         Returns:
-            Rotated tensor with the same shape as input.
+            torch.Tensor: Rotated tensor with the same shape as input.
         """
         k = torch.randint(0, 4, (1,)).item()
         return torch.rot90(img, k, dims=[1, 2])
@@ -269,10 +269,10 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Flatten patch batches so all patches from one sample stay adjacent.
 
         Args:
-            batch: Iterable of (patch_tensor, sample_info) items.
+            batch (Iterable[tuple[torch.Tensor, dict]]): Iterable of (patch_tensor, sample_info) items.
 
         Returns:
-            Tuple of concatenated patch tensors and merged metadata dictionary.
+            tuple[torch.Tensor, dict]: Tuple of concatenated patch tensors and merged metadata dictionary.
         """
         data, position_dicts = zip(*batch)
         return torch.cat(data, 0), dict(pair for d in position_dicts for pair in d.items())
@@ -281,10 +281,10 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Create datasets for the requested Lightning stage.
 
         Args:
-            stage: One of fit, test, or predict.
+            stage (str): One of 'fit', 'test', or 'predict'.
 
         Returns:
-            None.
+            None
         """
         if stage == "fit":
             self.train_data = CorrosionDataset(
@@ -304,7 +304,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Build the training DataLoader.
 
         Returns:
-            DataLoader for training samples.
+            torch.utils.data.DataLoader: DataLoader for training samples.
         """
         return DataLoader(
             self.train_data,
@@ -317,7 +317,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Build the validation DataLoader.
 
         Returns:
-            DataLoader for validation samples.
+            torch.utils.data.DataLoader: DataLoader for validation samples.
         """
         return DataLoader(
             self.val_data,
@@ -330,7 +330,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Build the test DataLoader.
 
         Returns:
-            DataLoader for test samples.
+            torch.utils.data.DataLoader: DataLoader for test samples.
         """
         return DataLoader(
             self.test_data,
@@ -343,7 +343,7 @@ class CorrosionDataModule(pl.LightningDataModule):
         """Build the prediction DataLoader.
 
         Returns:
-            DataLoader using a custom collate function for patch metadata.
+            torch.utils.data.DataLoader: DataLoader using a custom collate function for patch metadata.
         """
         return DataLoader(
             self.predict_data,
