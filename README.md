@@ -1,4 +1,4 @@
-# Corrosion Beneath the Crust - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-INSERT_DOI-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491) [![WandB](https://img.shields.io/badge/WandB-enabled-yellow)](#)
+# Corrosion Beneath the Crust - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-INSERT_DOI-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491) [![WandB](https://img.shields.io/badge/WandB-INSERT_LINK-yellow)](#)
 
 This repository implements the U-Net regression code used in the paper "Corrosion Beneath the Crust: Determination of Concealed Volume Loss from Optical Corrosion Imprints by Quantitative Imaging". The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
 
@@ -77,7 +77,9 @@ python ai2/tune.py
 
 ## Data
 
-The directories `data`, `model-configs`, `models`, and `predictions` are published separately as a dataset (https://doi.org/10.15480/882.17491). The dataset is released under the CC BY 4.0 license.
+The directories `data`, `model-configs`, `models`, and `predictions` are published separately as a dataset (https://doi.org/10.15480/882.17491). The dataset is released under the CC BY 4.0 license. The data in the `data` folder is a processed subset of the data orginially collected by
+
+C. Song, B. Vaghefinazari, T. Würger, A. Lisitsyna, D. Mei, M. Nienaber, J. Bohlen, M. L. Zheludkevich, S. Albarqouni, C. Feiler, S. V. Lamaka, *Corrosion Science* **2025**, *250* 112903 (https://doi.org/10.1016/j.corsci.2025.112903).
 
 ## Configuration
 
@@ -93,17 +95,11 @@ This repository logs experiments to Weights & Biases (W&B). The public project l
 
 ## Citation
 
-Please cite the paper if you use this code. Example BibTeX (replace fields):
+Please cite the paper if you use this code.
 
-```bibtex
-@article{your2026corrosion,
-    title={Corrosion Beneath the Crust: Determination of Concealed Volume Loss from Optical Corrosion Imprints by Quantitative Imaging},
-    author={Author, A. and Author, B.},
-    journal={Journal Name},
-    year={2026},
-    doi={INSERT_DOI}
-}
-```
+L. Dammann, C. Song, B. Vaghefinazari, T. Würger, A. Lisitsyna,S. Albarqouni, M. L. Zheludkevich,
+S. V. Lamaka, C. Feiler
+(https://doi.org/)
 
 ## License
 
