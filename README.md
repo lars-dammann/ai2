@@ -1,4 +1,4 @@
-# Corrosion Beneath the Crust - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/) [![DOI](https://img.shields.io/badge/doi-INSERT_DOI-blue)](https://doi.org/INSERT_DOI_HERE) [![WandB](https://img.shields.io/badge/WandB-enabled-yellow)](#)
+# Corrosion Beneath the Crust - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-INSERT_DOI-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491) [![WandB](https://img.shields.io/badge/WandB-enabled-yellow)](#)
 
 This repository implements the U-Net regression code used in the paper "Corrosion Beneath the Crust: Determination of Concealed Volume Loss from Optical Corrosion Imprints by Quantitative Imaging". The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
 
@@ -6,7 +6,7 @@ Paper: [Corrosion Beneath the Crust - DOI: INSERT_DOI_HERE]
 
 Quick links
 - Paper: [DOI placeholder]
-- Dataset: [Dataset DOI placeholder]
+- Dataset: https://doi.org/10.15480/882.17491
 - W&B: [link to project]
 
 ## Quickstart
@@ -77,7 +77,7 @@ python ai2/tune.py
 
 ## Data
 
-The directories `data`, `model-configs`, `models`, and `predictions` are published separately as a dataset (DOI: INSERT_DATASET_DOI). The dataset is released under the CC BY 4.0 license.
+The directories `data`, `model-configs`, `models`, and `predictions` are published separately as a dataset (https://doi.org/10.15480/882.17491). The dataset is released under the CC BY 4.0 license.
 
 ## Configuration
 
