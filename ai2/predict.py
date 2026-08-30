@@ -39,7 +39,7 @@ model_ids = {
 
 # Read environment variables
 # Parent directory containing the data folds
-parent_data_dir = Path(os.getenv("DATA_DIR"))
+parent_data_dir = Path(os.getenv("SPLIT_DATA_DIR"))
 # Directory where the predictions will be saved
 prediction_save_dir = Path(os.getenv("PREDICTION_DIR"))
 # Directory containing the configuration files
