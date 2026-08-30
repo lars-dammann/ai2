@@ -64,16 +64,18 @@ python ai2/tune.py
 
 ## Repository layout
 
-- `ai2/` — training, inference and tuning scripts
-    - `ai2/crossvalidation.py` — run training for cross-validation folds
-    - `ai2/predict.py` — generate predictions from trained models
-    - `ai2/tune.py` — hyperparameter optimization
-    - `ai2/datamodule/` — torch datamodules and dataloaders
-    - `ai2/model/` — PyTorch Lightning model definitions (`lit_model.py`, `unet.py`)
-    - `ai2/utils/` — helpers (data splitting, normalization, dataset)
-- `configs/` — JSON configs for datamodule, model and trainer (e.g., `crossval-config.json`, `tune-config.json`)
-- `preprocess/` — notebooks and scripts for preprocessing the original collected data
-- `results/` — evaluation notebooks and scripts used to generate figures
+- `ai2/` — Implementation of the regression U-Net
+    - `ai2/crossvalidation.py` — Script to run training for cross-validation folds
+    - `ai2/predict.py` — Script to generate predictions from trained models
+    - `ai2/tune.py` — Script to execute hyperparameter optimization with Optuna
+    - `ai2/datamodule/` — PyTorch datamodules and dataloaders
+    - `ai2/model/` — PyTorch Lightning model definitions
+        - `ai2/model/unet.py` — Implementation of the PyTorch U-Net
+        - `ai2/model/lit_model.py` — PyTorchLightning model implementing the training, valdiation and inference steps as well as the loss calculations
+    - `ai2/utils/` — Utility code (data splitting, normalization and dataset classes)
+- `configs/` — JSON configuration files for datamodule, model and trainer for crossvalidaton training (`crossval-config.json`) and hyperparameter optimization (`tune-config.json`)
+- `preprocess/` — Notebooks and scripts describing the preprocessing of the original collected data (e.g. ROI selection and alignment)
+- `results/` — Evaluation notebooks and scripts used to generate results and figures reported in the paper
 
 ## Data
 
