@@ -1,8 +1,7 @@
 # Corrosion Beneath the Crust - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-INSERT_DOI-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491) [![WandB](https://img.shields.io/badge/WandB-INSERT_LINK-yellow)](#)
 
-This repository implements the U-Net regression code used in the paper "Corrosion Beneath the Crust: Determination of Concealed Volume Loss from Optical Corrosion Imprints by Quantitative Imaging". The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
+This repository implements the U-Net regression code used in the paper "U-Net-based Prediction of Concealed Volume Loss in AZ31 from Optical Corrosion Imprints and As-Exposed Surface Topography". The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
 
-Paper: [Corrosion Beneath the Crust - DOI: INSERT_DOI_HERE]
 
 Quick links
 - Paper: [DOI placeholder]
