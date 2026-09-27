@@ -1,12 +1,11 @@
-# U-Net-based Prediction of Concealed Volume Loss - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-INSERT_DOI-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491) [![WandB](https://img.shields.io/badge/WandB-INSERT_LINK-yellow)](#)
+# U-Net-based Prediction of Concealed Volume Loss - Code [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Python](https://img.shields.io/badge/python-3.12-green)](https://www.python.org/) [![Paper](https://img.shields.io/badge/paper-10.1002/aidi.70168-red)](https://doi.org/) [![Data](https://img.shields.io/badge/data-10.15480/882.17491-orange)](https://doi.org/10.15480/882.17491)
 
-This repository implements the U-Net regression code used in the paper "U-Net-based Prediction of Concealed Volume Loss in AZ31 from Optical Corrosion Imprints and As-Exposed Surface Topography". The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
+This repository implements the U-Net regression code used in the paper *U-Net-based Prediction of Concealed Volume Loss in AZ31 from Optical Corrosion Imprints and As-Exposed Surface Topography*. The model predicts pixel-wise corrosion depth from optical imprints, enabling estimation of concealed volume loss without removing corrosion products.
 
 
 Quick links
-- Paper: [DOI placeholder]
+- Paper: https://doi.org/10.1002/aidi.70168
 - Dataset: https://doi.org/10.15480/882.17491
-- W&B: [link to project]
 
 ## Quickstart
 
@@ -88,19 +87,12 @@ C. Song, B. Vaghefinazari, T. Würger, A. Lisitsyna, D. Mei, M. Nienaber, J. Boh
 - `configs/tune-config.json` — configuration for hyperparameter search.
 - `model-configs/*` — configurations of the 18 individual trained models
 
-## Weights & Biases (W&B)
-
-Public project: [W&B project placeholder](https://wandb.ai/<entity>/<project>)
-
-This repository logs experiments to Weights & Biases (W&B). The public project link above will list runs, metrics, configs and artifacts (models/checkpoints, predictions) used in the paper.
-
 ## Citation
 
 Please cite the paper if you use this code.
 
-L. Dammann, C. Song, B. Vaghefinazari, T. Würger, A. Lisitsyna,S. Albarqouni, M. L. Zheludkevich,
-S. V. Lamaka, C. Feiler
-(https://doi.org/)
+*U-Net-based Prediction of Concealed Volume Loss in AZ31 from Optical Corrosion Imprints and As-Exposed Surface Topography*
+(https://doi.org/10.1002/aidi.70168)
 
 ## License
 
