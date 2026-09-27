@@ -94,6 +94,11 @@ Please cite the paper if you use this code.
 *U-Net-based Prediction of Concealed Volume Loss in AZ31 from Optical Corrosion Imprints and As-Exposed Surface Topography*
 (https://doi.org/10.1002/aidi.70168)
 
+If you use the associated dataset please also cite:
+- The dataset: https://doi.org/10.15480/882.17491
+- Citation for the unprocessed data used in the `data` folder:
+C. Song, B. Vaghefinazari, T. Würger, A. Lisitsyna, D. Mei, M. Nienaber, J. Bohlen, M. L. Zheludkevich, S. Albarqouni, C. Feiler, S. V. Lamaka, *Corrosion Science* **2025**, *250* 112903 (https://doi.org/10.1016/j.corsci.2025.112903).
+
 ## License
 
 This project is released under the BSD-3-Clause license.
